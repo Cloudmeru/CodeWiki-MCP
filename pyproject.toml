@@ -1,0 +1,35 @@
+[project]
+name = "codewiki-mcp"
+version = "0.3.0"
+description = "MCP server providing AI-powered access to Google CodeWiki for open-source repositories"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+
+dependencies = [
+    "mcp",
+    "pydantic>=2.0",
+    "httpx>=0.27",
+    "beautifulsoup4>=4.12",
+    "lxml>=5.0",
+    "playwright>=1.40",
+    "tenacity>=8.2",
+    "cachetools>=5.3",
+]
+
+[project.optional-dependencies]
+build = ["pyinstaller>=6.0"]
+test = ["pytest>=7.0", "pytest-mock", "pytest-asyncio"]
+
+[project.scripts]
+codewiki-mcp = "codewiki_mcp.server:main"
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["codewiki_mcp*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

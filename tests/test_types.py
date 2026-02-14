@@ -1,0 +1,189 @@
+"""Tests for Pydantic input schemas and structured response types."""
+
+from __future__ import annotations
+
+import json
+
+import pytest
+
+from codewiki_mcp.types import (
+    ErrorCode,
+    RepoInput,
+    ResponseMeta,
+    ResponseStatus,
+    SearchInput,
+    SectionInput,
+    ToolResponse,
+    TopicsInput,
+    validate_search_input,
+    validate_section_input,
+    validate_topics_input,
+)
+
+
+# ---------------------------------------------------------------------------
+# RepoInput
+# ---------------------------------------------------------------------------
+class TestRepoInput:
+    def test_full_github_url(self):
+        inp = RepoInput(repo_url="https://github.com/microsoft/vscode")
+        assert inp.repo_url == "https://github.com/microsoft/vscode"
+
+    def test_full_gitlab_url(self):
+        inp = RepoInput(repo_url="https://gitlab.com/org/project")
+        assert inp.repo_url == "https://gitlab.com/org/project"
+
+    def test_owner_repo_shorthand(self):
+        inp = RepoInput(repo_url="microsoft/vscode")
+        assert inp.repo_url == "https://github.com/microsoft/vscode"
+
+    def test_owner_repo_with_dots(self):
+        inp = RepoInput(repo_url="user/repo.js")
+        assert inp.repo_url == "https://github.com/user/repo.js"
+
+    def test_empty_raises(self):
+        with pytest.raises(Exception):
+            RepoInput(repo_url="")
+
+    def test_whitespace_only_raises(self):
+        with pytest.raises(Exception):
+            RepoInput(repo_url="   ")
+
+    def test_invalid_url_raises(self):
+        with pytest.raises(Exception):
+            RepoInput(repo_url="https://random-site.com/foo/bar")
+
+    def test_single_word_raises(self):
+        with pytest.raises(Exception):
+            RepoInput(repo_url="justarepo")
+
+    def test_strips_whitespace(self):
+        inp = RepoInput(repo_url="  microsoft/vscode  ")
+        assert inp.repo_url == "https://github.com/microsoft/vscode"
+
+
+# ---------------------------------------------------------------------------
+# SearchInput
+# ---------------------------------------------------------------------------
+class TestSearchInput:
+    def test_valid(self):
+        inp = SearchInput(repo_url="owner/repo", query="How does routing work?")
+        assert inp.repo_url == "https://github.com/owner/repo"
+        assert inp.query == "How does routing work?"
+
+    def test_empty_query_raises(self):
+        with pytest.raises(Exception):
+            SearchInput(repo_url="owner/repo", query="")
+
+    def test_whitespace_query_raises(self):
+        with pytest.raises(Exception):
+            SearchInput(repo_url="owner/repo", query=" ")
+
+
+# ---------------------------------------------------------------------------
+# SectionInput (new in v0.3.0)
+# ---------------------------------------------------------------------------
+class TestSectionInput:
+    def test_valid(self):
+        inp = SectionInput(repo_url="owner/repo", section_title="Architecture")
+        assert inp.repo_url == "https://github.com/owner/repo"
+        assert inp.section_title == "Architecture"
+
+    def test_empty_section_title_raises(self):
+        with pytest.raises(Exception):
+            SectionInput(repo_url="owner/repo", section_title="")
+
+    def test_whitespace_section_title_raises(self):
+        with pytest.raises(Exception):
+            SectionInput(repo_url="owner/repo", section_title="  ")
+
+    def test_inherits_repo_validation(self):
+        with pytest.raises(Exception):
+            SectionInput(repo_url="bad", section_title="Architecture")
+
+    def test_shorthand_normalizes(self):
+        inp = SectionInput(repo_url="microsoft/vscode", section_title="Ext")
+        assert inp.repo_url == "https://github.com/microsoft/vscode"
+
+
+# ---------------------------------------------------------------------------
+# ToolResponse
+# ---------------------------------------------------------------------------
+class TestToolResponse:
+    def test_success_factory(self):
+        resp = ToolResponse.success("hello world", repo_url="https://github.com/a/b", query="q")
+        assert resp.status == ResponseStatus.OK
+        assert resp.data == "hello world"
+        assert resp.meta.char_count == 11
+        assert resp.code is None
+
+    def test_error_factory(self):
+        resp = ToolResponse.error(ErrorCode.TIMEOUT, "timed out", repo_url="https://github.com/a/b")
+        assert resp.status == ResponseStatus.ERROR
+        assert resp.code == ErrorCode.TIMEOUT
+        assert resp.message == "timed out"
+        assert resp.data is None
+
+    def test_to_text_is_valid_json(self):
+        resp = ToolResponse.success("data here")
+        text = resp.to_text()
+        parsed = json.loads(text)
+        assert parsed["status"] == "ok"
+        assert parsed["data"] == "data here"
+
+    def test_error_to_text_excludes_none(self):
+        resp = ToolResponse.error(ErrorCode.VALIDATION, "bad input")
+        text = resp.to_text()
+        parsed = json.loads(text)
+        assert "data" not in parsed
+        assert "query" not in parsed
+
+    def test_meta_defaults(self):
+        meta = ResponseMeta()
+        assert meta.elapsed_ms == 0
+        assert meta.char_count == 0
+        assert meta.attempt == 1
+        assert meta.truncated is False
+
+
+# ---------------------------------------------------------------------------
+# Validation helpers
+# ---------------------------------------------------------------------------
+class TestValidationHelpers:
+    def test_validate_search_input_ok(self):
+        result = validate_search_input("owner/repo", "What is X?")
+        assert isinstance(result, SearchInput)
+
+    def test_validate_search_input_bad_url(self):
+        result = validate_search_input("not-a-url", "query")
+        assert isinstance(result, ToolResponse)
+        assert result.status == ResponseStatus.ERROR
+        assert result.code == ErrorCode.VALIDATION
+
+    def test_validate_search_input_empty_query(self):
+        result = validate_search_input("owner/repo", "")
+        assert isinstance(result, ToolResponse)
+        assert result.code == ErrorCode.VALIDATION
+
+    def test_validate_topics_input_ok(self):
+        result = validate_topics_input("microsoft/vscode")
+        assert isinstance(result, TopicsInput)
+
+    def test_validate_topics_input_bad(self):
+        result = validate_topics_input("bad")
+        assert isinstance(result, ToolResponse)
+        assert result.code == ErrorCode.VALIDATION
+
+    def test_validate_section_input_ok(self):
+        result = validate_section_input("owner/repo", "Architecture")
+        assert isinstance(result, SectionInput)
+
+    def test_validate_section_input_bad_url(self):
+        result = validate_section_input("bad", "Architecture")
+        assert isinstance(result, ToolResponse)
+        assert result.code == ErrorCode.VALIDATION
+
+    def test_validate_section_input_empty_section(self):
+        result = validate_section_input("owner/repo", "")
+        assert isinstance(result, ToolResponse)
+        assert result.code == ErrorCode.VALIDATION
