@@ -247,8 +247,6 @@ tests/
 Dockerfile             # Docker deployment
 ```
 
-## Running Tests
-
 ```bash
 pip install -e ".[test]"
 pytest tests/ -v
