@@ -6,6 +6,7 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that p
 
 - **Playwright-powered rendering** — CodeWiki is an Angular SPA; all page content is rendered via headless Chromium
 - **4 MCP tools** — topics overview, structure (JSON TOC), full/section content, interactive Gemini chat Q&A
+- **Structured diagram extraction** — detects CodeWiki SPA diagrams, Mermaid blocks, and inline SVGs; parses Graphviz SVGs into entities and relationships
 - **Shared browser singleton** — persistent background event loop with lazy Chromium launch, shared across all tools
 - **In-memory caching** — TTLCache avoids redundant page renders (wiki pages cached for 5 min)
 - **Dual-strategy parser** — handles CodeWiki's custom Angular elements (`<body-content-section>`, `<documentation-markdown>`) with fallback to standard HTML
@@ -14,6 +15,7 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that p
 - **URL normalization** — accepts `owner/repo` shorthand or full URLs
 - **Environment variable configuration** — override timeouts, retries, cache TTL, and limits
 - **Multi-transport** — stdio (default) or SSE
+- **Graceful shutdown** — SIGINT/SIGTERM handlers for clean Ctrl+C
 - **Modular architecture** — tools in separate modules, easy to extend
 - **Response metadata** — timing, char count, attempt info in every response
 - **Docker support** — Dockerfile with Playwright included
@@ -86,6 +88,10 @@ docker run -e CODEWIKI_MAX_RETRIES=5 -e CODEWIKI_VERBOSE=true codewiki-mcp
 | `CODEWIKI_RESPONSE_MAX_CHARS` | `30000` | Max response character count |
 | `CODEWIKI_CACHE_TTL` | `300` | Page cache TTL (seconds) |
 | `CODEWIKI_CACHE_MAX_SIZE` | `50` | Max pages in cache |
+| `CODEWIKI_RESPONSE_INITIAL_DELAY` | `5` | Initial delay before polling chat response (seconds) |
+| `CODEWIKI_RESPONSE_POLL_INTERVAL` | `2` | Interval between chat response polls (seconds) |
+| `CODEWIKI_RESPONSE_STABLE_INTERVAL` | `2` | Stable response detection interval (seconds) |
+| `CODEWIKI_JS_LOAD_DELAY` | `3` | Delay for JS/SPA loading (seconds) |
 | `CODEWIKI_VERBOSE` | `false` | Enable debug logging |
 | `CODEWIKI_BASE_URL` | `https://codewiki.google` | CodeWiki base URL |
 
@@ -231,6 +237,7 @@ codewiki_mcp/
     ├── structure.py   # read_wiki_structure
     └── topics.py      # list_code_wiki_topics
 tests/
+├── __init__.py        # Package marker
 ├── conftest.py        # Shared fixtures + sample data
 ├── test_cache.py      # Cache layer tests
 ├── test_config.py     # Configuration tests
@@ -249,7 +256,7 @@ pytest tests/ -v
 
 ## Architecture
 
-### v0.3.0 — Playwright-everywhere
+### v1.0.0 — Playwright-everywhere
 
 CodeWiki is an **Angular SPA** (`<sdlc-agents-root>`) — a plain HTTP GET returns an empty body. All page content is rendered client-side, so every tool uses Playwright headless Chromium.
 
@@ -273,6 +280,20 @@ CodeWiki uses custom Angular elements instead of standard HTML:
 1. **CodeWiki SPA** — looks for `<body-content-section>` + `<documentation-markdown>` elements
 2. **Standard HTML fallback** — scans h1-h6 headings for non-CodeWiki pages
 
+#### Structured diagram extraction
+
+CodeWiki renders diagrams as `<code-documentation-diagram-inline>` elements containing base64-encoded SVGs. The parser detects three types of diagrams:
+
+1. **CodeWiki SPA diagrams** — decodes `data:image/svg+xml;base64,...` from `<image class="image-diagram">` elements, then parses Graphviz SVG structure
+2. **Mermaid blocks** — captures raw source from `<code class="mermaid">` and `<div class="mermaid">`
+3. **Fallback SVGs/images** — bare `<svg>` with `<title>` or `<img>` matching diagram patterns
+
+For Graphviz SVGs, it extracts structured graph data:
+- **Nodes** — `<g class="node">` groups → `{id, label}`
+- **Edges** — `<g class="edge">` groups → `{from, to, label}`
+
+Diagram summaries (entities + relationships) are placed at the top of tool output so they remain visible even when responses are truncated.
+
 #### Key components
 
 - **Playwright + shared browser** — all page rendering via headless Chromium
@@ -281,4 +302,5 @@ CodeWiki uses custom Angular elements instead of standard HTML:
 - **Pydantic schemas** validate all inputs before processing
 - **Structured responses** with JSON envelope and metadata
 - **Modular tools** — each tool in its own module, registered via `register_all_tools()`
+- **Signal handlers** — SIGINT/SIGTERM for clean shutdown with browser cleanup
 - **Environment variable configuration** — all tunables configurable without code changes
