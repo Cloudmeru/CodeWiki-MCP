@@ -40,7 +40,7 @@ codewiki-mcp --verbose
 ### Option B — Install dependencies only
 
 ```bash
-pip install mcp pydantic httpx beautifulsoup4 lxml playwright tenacity cachetools
+pip install mcp pydantic httpx beautifulsoup4 lxml playwright cachetools
 playwright install chromium
 
 python -m codewiki_mcp

@@ -38,7 +38,7 @@ RESPONSE_WAIT_TIMEOUT_SECONDS: int = _env_int("CODEWIKI_RESPONSE_WAIT_TIMEOUT", 
 HTTPX_TIMEOUT_SECONDS: int = _env_int("CODEWIKI_HTTPX_TIMEOUT", 30)
 
 # ---------------------------------------------------------------------------
-# Retry (tenacity-based)
+# Retry
 # ---------------------------------------------------------------------------
 MAX_RETRIES: int = _env_int("CODEWIKI_MAX_RETRIES", 2)
 RETRY_DELAY_SECONDS: int = _env_int("CODEWIKI_RETRY_DELAY", 3)
