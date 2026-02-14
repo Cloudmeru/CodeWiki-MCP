@@ -23,13 +23,13 @@ logger = logging.getLogger("CodeWiki")
 # ---------------------------------------------------------------------------
 # Persistent background event loop (single-threaded)
 # ---------------------------------------------------------------------------
-_loop: asyncio.AbstractEventLoop | None = None
-_thread: threading.Thread | None = None
+_loop: asyncio.AbstractEventLoop | None = None  # pylint: disable=invalid-name
+_thread: threading.Thread | None = None  # pylint: disable=invalid-name
 _lock = threading.Lock()
 
 # Playwright state — only touched from _loop
-_browser = None
-_pw = None
+_browser = None  # pylint: disable=invalid-name
+_pw = None  # pylint: disable=invalid-name
 
 
 def _start_loop(loop: asyncio.AbstractEventLoop) -> None:
@@ -40,12 +40,15 @@ def _start_loop(loop: asyncio.AbstractEventLoop) -> None:
 
 def _ensure_loop() -> asyncio.AbstractEventLoop:
     """Return the persistent background event loop, creating it on first call."""
-    global _loop, _thread
+    global _loop, _thread  # pylint: disable=global-statement
     with _lock:
         if _loop is None or _loop.is_closed():
             _loop = asyncio.new_event_loop()
             _thread = threading.Thread(
-                target=_start_loop, args=(_loop,), daemon=True, name="pw-loop",
+                target=_start_loop,
+                args=(_loop,),
+                daemon=True,
+                name="pw-loop",
             )
             _thread.start()
     return _loop
@@ -68,9 +71,11 @@ def run_in_browser_loop(coro):
 # ---------------------------------------------------------------------------
 async def _get_browser():
     """Lazily launch a shared Playwright Chromium browser instance."""
-    global _browser, _pw
+    global _browser, _pw  # pylint: disable=global-statement
     if _browser is None or not _browser.is_connected():
-        from playwright.async_api import async_playwright
+        from playwright.async_api import (  # pylint: disable=import-outside-toplevel
+            async_playwright,
+        )
 
         _pw = await async_playwright().start()
         _browser = await _pw.chromium.launch(
@@ -88,17 +93,17 @@ async def _get_browser():
 
 async def cleanup_browser():
     """Close the shared browser instance."""
-    global _browser, _pw
+    global _browser, _pw  # pylint: disable=global-statement
     if _browser:
         try:
             await _browser.close()
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             pass
         _browser = None
     if _pw:
         try:
             await _pw.stop()
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             pass
         _pw = None
     logger.debug("Playwright browser cleaned up")
@@ -117,8 +122,11 @@ async def _render_page_async(url: str) -> str:
     page = await context.new_page()
     try:
         logger.info("Rendering %s via Playwright...", url)
-        await page.goto(url, wait_until="domcontentloaded",
-                        timeout=config.PAGE_LOAD_TIMEOUT_SECONDS * 1000)
+        await page.goto(
+            url,
+            wait_until="domcontentloaded",
+            timeout=config.PAGE_LOAD_TIMEOUT_SECONDS * 1000,
+        )
         # Wait for the Angular SPA to render content
         # Try to wait for meaningful content to appear
         try:
@@ -126,7 +134,7 @@ async def _render_page_async(url: str) -> str:
                 "h1, h2, h3, article, main, [class*='content']",
                 timeout=config.ELEMENT_WAIT_TIMEOUT_SECONDS * 1000,
             )
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             # Fallback: just wait a fixed time for JS to execute
             await asyncio.sleep(config.JS_LOAD_DELAY_SECONDS)
 

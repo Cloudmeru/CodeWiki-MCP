@@ -17,6 +17,8 @@ if TYPE_CHECKING:
 
 def register_all_tools(mcp: FastMCP) -> None:
     """Register every CodeWiki tool on the given MCP server."""
+    # pylint: disable=import-outside-toplevel
+    # Lazy imports avoid circular dependencies at module load time.
     from .contents import register as register_contents
     from .search import register as register_search
     from .structure import register as register_structure

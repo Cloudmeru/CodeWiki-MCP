@@ -14,7 +14,7 @@ import time
 from mcp.server.fastmcp import FastMCP
 
 from .. import config
-from ..browser import _get_browser, cleanup_browser, run_in_browser_loop
+from ..browser import _get_browser, run_in_browser_loop
 from ..types import (
     ErrorCode,
     ResponseMeta,
@@ -37,7 +37,7 @@ async def _ensure_chat_open(page) -> bool:
         if await chat.is_visible(timeout=2000):
             logger.debug("Chat panel already open")
             return True
-    except Exception:
+    except Exception:  # pylint: disable=broad-except
         pass
 
     # Try clicking the toggle button
@@ -50,7 +50,7 @@ async def _ensure_chat_open(page) -> bool:
             chat = page.locator(config.CHAT_OPEN_SELECTOR)
             if await chat.is_visible(timeout=3000):
                 return True
-    except Exception:
+    except Exception:  # pylint: disable=broad-except
         pass
 
     return False
@@ -64,7 +64,7 @@ async def _find_chat_input(page):
             if await elem.is_visible(timeout=2000):
                 logger.debug("Found chat input: %s", selector)
                 return elem
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             continue
     return None
 
@@ -83,7 +83,7 @@ async def _wait_for_submit_enabled(page, timeout_ms: int = 5000) -> None:
                     if not disabled:
                         return
                     await asyncio.sleep(0.2)
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             continue
 
 
@@ -98,12 +98,12 @@ async def _click_submit(page) -> bool:
                     await btn.click()
                     logger.debug("Clicked submit: %s", selector)
                     return True
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             continue
     return False
 
 
-async def _wait_for_response(page) -> str:
+async def _wait_for_response(page) -> str:  # pylint: disable=too-many-branches
     """Wait for the chat response to appear and stabilize in the thread.
 
     CodeWiki renders responses inside ``<thread>`` → virtual-scroll →
@@ -120,7 +120,7 @@ async def _wait_for_response(page) -> str:
             empty = page.locator(config.CHAT_EMPTY_STATE_SELECTOR)
             if not await empty.is_visible(timeout=500):
                 break
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             break
         await asyncio.sleep(1)
 
@@ -137,7 +137,7 @@ async def _wait_for_response(page) -> str:
                     if len(text) > config.NEW_CONTENT_THRESHOLD_CHARS:
                         content = text
                         break
-            except Exception:
+            except Exception:  # pylint: disable=broad-except
                 continue
         if content:
             break
@@ -155,7 +155,7 @@ async def _wait_for_response(page) -> str:
                 if await elem.is_visible(timeout=500):
                     content = await elem.inner_text()
                     break
-            except Exception:
+            except Exception:  # pylint: disable=broad-except
                 continue
         if len(content) == last_len:
             logger.debug("Response stabilized at %d chars", last_len)
@@ -192,8 +192,11 @@ async def _search_impl(inp: SearchInput) -> ToolResponse:
     page = await context.new_page()
 
     try:
-        await page.goto(target_url, wait_until="domcontentloaded",
-                        timeout=config.PAGE_LOAD_TIMEOUT_SECONDS * 1000)
+        await page.goto(
+            target_url,
+            wait_until="domcontentloaded",
+            timeout=config.PAGE_LOAD_TIMEOUT_SECONDS * 1000,
+        )
 
         # Wait for the SPA to render the wiki page
         try:
@@ -201,7 +204,7 @@ async def _search_impl(inp: SearchInput) -> ToolResponse:
                 "body-content-section, documentation-markdown, h1",
                 timeout=config.ELEMENT_WAIT_TIMEOUT_SECONDS * 1000,
             )
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             pass
         await asyncio.sleep(config.JS_LOAD_DELAY_SECONDS)
 
@@ -268,7 +271,7 @@ async def _search_impl(inp: SearchInput) -> ToolResponse:
             meta=ResponseMeta(char_count=len(cleaned), truncated=truncated),
         )
 
-    except Exception as exc:
+    except Exception as exc:  # pylint: disable=broad-except
         return ToolResponse.error(
             ErrorCode.DRIVER_ERROR,
             f"Playwright error: {exc}",
@@ -294,7 +297,7 @@ def _run_search(inp: SearchInput) -> ToolResponse:
             repo_url=inp.repo_url,
             query=inp.query,
         )
-    except Exception as exc:
+    except Exception as exc:  # pylint: disable=broad-except
         return ToolResponse.error(
             ErrorCode.INTERNAL,
             str(exc),
@@ -353,4 +356,6 @@ def register(mcp: FastMCP) -> None:
             last_error.meta.elapsed_ms = int((time.monotonic() - start) * 1000)
             return last_error.to_text()
 
-        return ToolResponse.error(ErrorCode.INTERNAL, "All retry attempts failed.").to_text()
+        return ToolResponse.error(
+            ErrorCode.INTERNAL, "All retry attempts failed."
+        ).to_text()

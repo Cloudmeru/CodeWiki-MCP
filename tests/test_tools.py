@@ -4,11 +4,9 @@ from __future__ import annotations
 
 import json
 
-import pytest
 
-from codewiki_mcp.parser import WikiPage, WikiSection
 from codewiki_mcp.server import create_server, parse_args
-from tests.conftest import SAMPLE_REPO_URL, make_wiki_page
+from tests.conftest import make_wiki_page
 
 
 # ---------------------------------------------------------------------------
@@ -284,7 +282,9 @@ class TestSearchTool:
         register(mcp)
 
         fn = mcp._tool_manager._tools["search_code_wiki"].fn
-        result = fn(repo_url="microsoft/vscode", query="What framework does VS Code use?")
+        result = fn(
+            repo_url="microsoft/vscode", query="What framework does VS Code use?"
+        )
         parsed = json.loads(result)
         assert parsed["status"] == "ok"
         assert "Electron" in parsed["data"]

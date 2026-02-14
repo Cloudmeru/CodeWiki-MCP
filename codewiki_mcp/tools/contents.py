@@ -43,7 +43,9 @@ def register(mcp: FastMCP) -> None:
                           to retrieve. If empty, returns the full wiki.
         """
         start = time.monotonic()
-        logger.info("read_wiki_contents — repo: %s, section: %s", repo_url, section_title)
+        logger.info(
+            "read_wiki_contents — repo: %s, section: %s", repo_url, section_title
+        )
 
         # Validate input based on whether section is specified
         if section_title.strip():
@@ -106,7 +108,7 @@ def register(mcp: FastMCP) -> None:
                 f"Timed out fetching CodeWiki page for {validated.repo_url}: {exc}",
                 repo_url=validated.repo_url,
             ).to_text()
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-except
             return ToolResponse.error(
                 ErrorCode.INTERNAL,
                 f"Failed to fetch CodeWiki page: {exc}",

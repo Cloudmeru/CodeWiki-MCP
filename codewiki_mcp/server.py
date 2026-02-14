@@ -35,9 +35,13 @@ def _shutdown(signum: int, _frame) -> None:
 
     # Clean up the shared Playwright browser (best-effort)
     try:
-        from .browser import cleanup_browser, run_in_browser_loop
+        from .browser import (  # pylint: disable=import-outside-toplevel
+            cleanup_browser,
+            run_in_browser_loop,
+        )
+
         run_in_browser_loop(cleanup_browser())
-    except Exception:
+    except Exception:  # pylint: disable=broad-except
         pass
 
     logger.info("CodeWiki MCP server stopped.")
@@ -86,7 +90,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Port for SSE transport (default: 3000)",
     )
     parser.add_argument(
-        "--verbose", "-v",
+        "--verbose",
+        "-v",
         action="store_true",
         default=config.VERBOSE,
         help="Enable verbose/debug logging",
@@ -122,9 +127,13 @@ def main(argv: list[str] | None = None) -> None:
     finally:
         # Ensure Playwright cleanup even if signal handler didn't fire
         try:
-            from .browser import cleanup_browser, run_in_browser_loop
+            from .browser import (  # pylint: disable=import-outside-toplevel
+                cleanup_browser,
+                run_in_browser_loop,
+            )
+
             run_in_browser_loop(cleanup_browser())
-        except Exception:
+        except Exception:  # pylint: disable=broad-except
             pass
         logger.info("CodeWiki MCP server stopped.")
 

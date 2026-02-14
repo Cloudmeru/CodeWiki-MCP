@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-import pytest
 from bs4 import BeautifulSoup
 
 from codewiki_mcp.parser import (
     WikiPage,
-    WikiSection,
     _extract_diagrams,
     _extract_text,
     _extract_toc,
@@ -41,7 +39,9 @@ class TestExtractText:
         assert "*italic*" in result
 
     def test_link(self):
-        soup = BeautifulSoup('<p>See <a href="https://example.com">link</a></p>', "lxml")
+        soup = BeautifulSoup(
+            '<p>See <a href="https://example.com">link</a></p>', "lxml"
+        )
         tag = soup.find("p")
         result = _extract_text(tag)
         assert "[link](https://example.com)" in result
@@ -60,7 +60,9 @@ class TestExtractText:
         assert "const x = 1;" in result
 
     def test_list(self):
-        soup = BeautifulSoup("<div><ul><li>Item A</li><li>Item B</li></ul></div>", "lxml")
+        soup = BeautifulSoup(
+            "<div><ul><li>Item A</li><li>Item B</li></ul></div>", "lxml"
+        )
         tag = soup.find("div")
         result = _extract_text(tag)
         assert "- Item A" in result
@@ -135,7 +137,9 @@ class TestExtractDiagrams:
         assert "graph LR" in diagrams[0]["content"]
 
     def test_mermaid_div(self):
-        html = '<html><body><div class="mermaid">flowchart TD; A-->B;</div></body></html>'
+        html = (
+            '<html><body><div class="mermaid">flowchart TD; A-->B;</div></body></html>'
+        )
         soup = BeautifulSoup(html, "lxml")
         diagrams = _extract_diagrams(soup)
         assert len(diagrams) == 1
@@ -158,7 +162,7 @@ class TestExtractDiagrams:
         data_uri = f"data:image/svg+xml;base64,{b64}"
         html = (
             "<html><body>"
-            '<body-content-section><h2>Architecture</h2>'
+            "<body-content-section><h2>Architecture</h2>"
             "<code-documentation-diagram-inline>"
             '<code-documentation-diagram-contents class="height-constrained">'
             '<div class="zoomable-image-container">'
@@ -183,20 +187,20 @@ class TestExtractDiagrams:
 
         inner_svg = (
             '<svg xmlns="http://www.w3.org/2000/svg">'
-            '<title>G</title>'
+            "<title>G</title>"
             '<g class="node" id="node1"><title>Trainer</title>'
-            '<text>Trainer</text><text>(Orchestrator)</text></g>'
+            "<text>Trainer</text><text>(Orchestrator)</text></g>"
             '<g class="node" id="node2"><title>Algorithm</title>'
-            '<text>Algorithm</text></g>'
+            "<text>Algorithm</text></g>"
             '<g class="edge" id="edge1"><title>Trainer-&gt;Algorithm</title>'
-            '<text>manages</text></g>'
-            '</svg>'
+            "<text>manages</text></g>"
+            "</svg>"
         )
         b64 = base64.b64encode(inner_svg.encode()).decode()
         data_uri = f"data:image/svg+xml;base64,{b64}"
         html = (
             "<html><body>"
-            '<body-content-section><h2>Core Architecture</h2>'
+            "<body-content-section><h2>Core Architecture</h2>"
             "<code-documentation-diagram-inline>"
             f'<svg class="svg-diagram"><image class="image-diagram" href="{data_uri}"></image></svg>'
             "</code-documentation-diagram-inline>"
@@ -306,4 +310,6 @@ class TestFetchWikiPage:
             return_value=SAMPLE_HTML,
         )
         fetch_wiki_page("https://github.com/owner/repo")
-        mock_fetch.assert_called_once_with("https://codewiki.google/github.com/owner/repo")
+        mock_fetch.assert_called_once_with(
+            "https://codewiki.google/github.com/owner/repo"
+        )

@@ -111,14 +111,18 @@ class TestSectionInput:
 # ---------------------------------------------------------------------------
 class TestToolResponse:
     def test_success_factory(self):
-        resp = ToolResponse.success("hello world", repo_url="https://github.com/a/b", query="q")
+        resp = ToolResponse.success(
+            "hello world", repo_url="https://github.com/a/b", query="q"
+        )
         assert resp.status == ResponseStatus.OK
         assert resp.data == "hello world"
         assert resp.meta.char_count == 11
         assert resp.code is None
 
     def test_error_factory(self):
-        resp = ToolResponse.error(ErrorCode.TIMEOUT, "timed out", repo_url="https://github.com/a/b")
+        resp = ToolResponse.error(
+            ErrorCode.TIMEOUT, "timed out", repo_url="https://github.com/a/b"
+        )
         assert resp.status == ResponseStatus.ERROR
         assert resp.code == ErrorCode.TIMEOUT
         assert resp.message == "timed out"

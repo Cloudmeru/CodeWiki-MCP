@@ -11,7 +11,6 @@ import time
 
 from mcp.server.fastmcp import FastMCP
 
-from .. import config
 from ..parser import fetch_wiki_page
 from ..types import (
     ErrorCode,
@@ -61,8 +60,7 @@ def register(mcp: FastMCP) -> None:
                 "repo": page.repo_name,
                 "title": page.title,
                 "sections": [
-                    {"title": s.title, "level": s.level}
-                    for s in page.sections
+                    {"title": s.title, "level": s.level} for s in page.sections
                 ],
                 "section_count": len(page.sections),
             }
@@ -85,7 +83,7 @@ def register(mcp: FastMCP) -> None:
                 f"Timed out fetching CodeWiki page for {validated.repo_url}: {exc}",
                 repo_url=validated.repo_url,
             ).to_text()
-        except Exception as exc:
+        except Exception as exc:  # pylint: disable=broad-except
             return ToolResponse.error(
                 ErrorCode.INTERNAL,
                 f"Failed to fetch CodeWiki page: {exc}",

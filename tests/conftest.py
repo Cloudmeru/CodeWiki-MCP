@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-from dataclasses import field
 from typing import Any
 
 import pytest
 
 from codewiki_mcp.parser import WikiPage, WikiSection
-
 
 # ---------------------------------------------------------------------------
 # Sample data
@@ -47,9 +45,15 @@ def make_wiki_page(**overrides: Any) -> WikiPage:
         url=f"https://codewiki.google/{SAMPLE_REPO_NAME}",
         title="Microsoft VS Code",
         sections=[
-            WikiSection(title="Architecture", level=2, content="VS Code is built on Electron."),
-            WikiSection(title="Extensions", level=2, content="Extensions from the marketplace."),
-            WikiSection(title="Extension API", level=3, content="API for editor access."),
+            WikiSection(
+                title="Architecture", level=2, content="VS Code is built on Electron."
+            ),
+            WikiSection(
+                title="Extensions", level=2, content="Extensions from the marketplace."
+            ),
+            WikiSection(
+                title="Extension API", level=3, content="API for editor access."
+            ),
             WikiSection(title="Testing", level=2, content="Tests written in Mocha."),
         ],
         toc=[

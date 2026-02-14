@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import re
 from enum import Enum
-from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -16,9 +15,7 @@ REPO_URL_PATTERN = re.compile(
     r"^https?://(github\.com|gitlab\.com|bitbucket\.org)/[\w.\-]+/[\w.\-]+(/.*)?$"
 )
 
-OWNER_REPO_PATTERN = re.compile(
-    r"^[\w.\-]+/[\w.\-]+$"
-)
+OWNER_REPO_PATTERN = re.compile(r"^[\w.\-]+/[\w.\-]+$")
 
 
 # ---------------------------------------------------------------------------
@@ -74,7 +71,7 @@ class SearchInput(RepoInput):
 class TopicsInput(RepoInput):
     """Input for the list_code_wiki_topics tool."""
 
-    pass  # Only repo_url needed
+    # Only repo_url needed — no extra fields.
 
 
 class SectionInput(RepoInput):
@@ -141,7 +138,7 @@ class ToolResponse(BaseModel):
     # -- Factory helpers --
 
     @classmethod
-    def success(
+    def success(  # pylint: disable=too-many-arguments
         cls,
         data: str,
         *,
@@ -160,7 +157,7 @@ class ToolResponse(BaseModel):
         )
 
     @classmethod
-    def error(
+    def error(  # pylint: disable=too-many-arguments
         cls,
         code: ErrorCode,
         message: str,
@@ -183,7 +180,7 @@ def validate_search_input(repo_url: str, query: str) -> SearchInput | ToolRespon
     """Validate and normalize search inputs. Returns SearchInput or ToolResponse error."""
     try:
         return SearchInput(repo_url=repo_url, query=query)
-    except Exception as exc:
+    except Exception as exc:  # pylint: disable=broad-except
         return ToolResponse.error(
             ErrorCode.VALIDATION,
             str(exc),
@@ -196,7 +193,7 @@ def validate_topics_input(repo_url: str) -> TopicsInput | ToolResponse:
     """Validate and normalize topics inputs. Returns TopicsInput or ToolResponse error."""
     try:
         return TopicsInput(repo_url=repo_url)
-    except Exception as exc:
+    except Exception as exc:  # pylint: disable=broad-except
         return ToolResponse.error(
             ErrorCode.VALIDATION,
             str(exc),
@@ -204,11 +201,13 @@ def validate_topics_input(repo_url: str) -> TopicsInput | ToolResponse:
         )
 
 
-def validate_section_input(repo_url: str, section_title: str) -> SectionInput | ToolResponse:
+def validate_section_input(
+    repo_url: str, section_title: str
+) -> SectionInput | ToolResponse:
     """Validate and normalize section inputs. Returns SectionInput or ToolResponse error."""
     try:
         return SectionInput(repo_url=repo_url, section_title=section_title)
-    except Exception as exc:
+    except Exception as exc:  # pylint: disable=broad-except
         return ToolResponse.error(
             ErrorCode.VALIDATION,
             str(exc),

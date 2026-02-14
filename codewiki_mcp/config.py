@@ -51,7 +51,7 @@ RESPONSE_MAX_CHARS: int = _env_int("CODEWIKI_RESPONSE_MAX_CHARS", 30000)
 # ---------------------------------------------------------------------------
 # Cache (cachetools TTLCache)
 # ---------------------------------------------------------------------------
-CACHE_TTL_SECONDS: int = _env_int("CODEWIKI_CACHE_TTL", 300)       # 5 minutes
+CACHE_TTL_SECONDS: int = _env_int("CODEWIKI_CACHE_TTL", 300)  # 5 minutes
 CACHE_MAX_SIZE: int = _env_int("CODEWIKI_CACHE_MAX_SIZE", 50)
 
 # ---------------------------------------------------------------------------

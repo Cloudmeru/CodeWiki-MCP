@@ -44,7 +44,9 @@ class WikiPage:
     title: str = ""
     sections: list[WikiSection] = field(default_factory=list)
     toc: list[dict[str, str]] = field(default_factory=list)  # [{title, level}]
-    diagrams: list[dict] = field(default_factory=list)  # [{type, nodes, edges, content}]
+    diagrams: list[dict] = field(
+        default_factory=list
+    )  # [{type, nodes, edges, content}]
     raw_text: str = ""
 
 
@@ -78,34 +80,38 @@ def _extract_text(tag: Tag) -> str:
         if isinstance(child, NavigableString):
             parts.append(str(child))
         elif isinstance(child, Tag):
-            if child.name in ("pre", "code"):
-                code_text = child.get_text()
-                if child.name == "pre":
-                    parts.append(f"\n```\n{code_text}\n```\n")
-                else:
-                    parts.append(f"`{code_text}`")
-            elif child.name == "br":
-                parts.append("\n")
-            elif child.name in ("a",):
-                href = child.get("href", "")
-                text = child.get_text()
-                if href and text:
-                    parts.append(f"[{text}]({href})")
-                else:
-                    parts.append(text)
-            elif child.name in ("strong", "b"):
-                parts.append(f"**{child.get_text()}**")
-            elif child.name in ("em", "i"):
-                parts.append(f"*{child.get_text()}*")
-            elif child.name in ("ul", "ol"):
-                for li in child.find_all("li", recursive=False):
-                    parts.append(f"\n- {li.get_text().strip()}")
-                parts.append("\n")
-            elif child.name in ("p", "div"):
-                parts.append(f"\n{_extract_text(child)}\n")
-            else:
-                parts.append(child.get_text())
+            parts.append(_tag_element_to_md(child))
     return "".join(parts).strip()
+
+
+# Map of inline/block tag names to simple formatters
+_INLINE_FORMATS: dict[str, str] = {"strong": "**", "b": "**", "em": "*", "i": "*"}
+
+
+def _tag_element_to_md(child: Tag) -> str:  # pylint: disable=too-many-return-statements
+    """Convert a single child tag to its markdown representation."""
+    name = child.name
+    if name in ("pre", "code"):
+        code_text = child.get_text()
+        return f"\n```\n{code_text}\n```\n" if name == "pre" else f"`{code_text}`"
+    if name == "br":
+        return "\n"
+    if name == "a":
+        href = child.get("href", "")
+        text = child.get_text()
+        return f"[{text}]({href})" if href and text else text
+    if name in _INLINE_FORMATS:
+        wrap = _INLINE_FORMATS[name]
+        return f"{wrap}{child.get_text()}{wrap}"
+    if name in ("ul", "ol"):
+        items = [
+            f"\n- {li.get_text().strip()}"
+            for li in child.find_all("li", recursive=False)
+        ]
+        return "".join(items) + "\n"
+    if name in ("p", "div"):
+        return f"\n{_extract_text(child)}\n"
+    return child.get_text()
 
 
 def _tag_to_markdown(tag: Tag) -> str:
@@ -152,14 +158,14 @@ def _parse_codewiki_sections(bcs_elements: list[Tag]) -> list[WikiSection]:
             if text:
                 # Strip leading title duplication
                 if title and text.startswith(title):
-                    text = text[len(title):].strip()
+                    text = text[len(title) :].strip()
                 md_parts.append(text)
 
         # Fallback: extract text from the whole section
         if not md_parts:
             text = _extract_text(elem)
             if title and text.startswith(title):
-                text = text[len(title):].strip()
+                text = text[len(title) :].strip()
             if text:
                 md_parts.append(text)
 
@@ -218,7 +224,9 @@ def _extract_toc(soup: BeautifulSoup) -> list[dict[str, str]]:
     toc: list[dict[str, str]] = []
 
     # Strategy 1: Look for "On this page" nav or similar TOC elements
-    for nav in soup.find_all(["nav", "div"], class_=re.compile(r"toc|table.of.contents|sidebar|nav", re.I)):
+    for nav in soup.find_all(
+        ["nav", "div"], class_=re.compile(r"toc|table.of.contents|sidebar|nav", re.I)
+    ):
         for link in nav.find_all("a"):
             text = link.get_text(strip=True)
             if text and len(text) > 1:
@@ -234,8 +242,6 @@ def _extract_toc(soup: BeautifulSoup) -> list[dict[str, str]]:
 
     return toc
 
-    return toc
-
 
 def _extract_diagrams(soup: BeautifulSoup) -> list[dict]:
     """Extract diagrams from the rendered HTML.
@@ -243,79 +249,81 @@ def _extract_diagrams(soup: BeautifulSoup) -> list[dict]:
     Handles three diagram sources:
 
     1. **CodeWiki SPA diagrams** — ``<code-documentation-diagram-inline>``
-       elements containing ``<svg class="svg-diagram">`` with embedded
-       base64 SVG ``<image>`` data URIs.  Graphviz node/edge groups are
-       parsed to extract structured graph data (entities and relationships).
-    2. **Mermaid code blocks / divs** — standard ``<pre><code class="mermaid">``
-       or ``<div class="mermaid">``.
-    3. **Fallback** — bare ``<svg>`` elements with ``<title>`` children, and
-       ``<img>`` tags whose ``alt`` text mentions diagrams.
+       elements with embedded base64 SVGs.
+    2. **Mermaid code blocks / divs**.
+    3. **Fallback** — bare ``<svg>`` and diagram ``<img>`` elements.
     """
     diagrams: list[dict] = []
-    _seen_hrefs: set[str] = set()  # deduplicate identical embedded SVGs
+    seen_hrefs: set[str] = set()
+    _extract_codewiki_diagrams(soup, diagrams, seen_hrefs)
+    _extract_mermaid_diagrams(soup, diagrams)
+    _extract_fallback_diagrams(soup, diagrams)
+    return diagrams
 
-    # ----- Strategy 1: CodeWiki SPA custom diagram elements -----------------
+
+def _extract_codewiki_diagrams(
+    soup: BeautifulSoup, diagrams: list[dict], seen_hrefs: set[str]
+) -> None:
+    """Strategy 1: CodeWiki SPA ``<code-documentation-diagram-inline>`` elements."""
     for inline in soup.find_all("code-documentation-diagram-inline"):
         info: dict = {"type": "svg-diagram"}
 
-        # Determine which section this diagram belongs to
         parent_section = inline.find_parent("body-content-section")
         if parent_section:
             heading = parent_section.find(["h1", "h2", "h3", "h4", "h5", "h6"])
             if heading:
                 info["section"] = heading.get_text(strip=True)
 
-        # Look for the base64-encoded SVG inside <image class="image-diagram">
         image_el = inline.find("image", class_="image-diagram")
-        href = (image_el.get("href") or image_el.get("xlink:href") or "") if image_el else ""
+        href = (
+            (image_el.get("href") or image_el.get("xlink:href") or "")
+            if image_el
+            else ""
+        )
 
-        if href and href not in _seen_hrefs:
-            _seen_hrefs.add(href)
+        if href and href not in seen_hrefs:
+            seen_hrefs.add(href)
             graph = _extract_svg_graph(href)
             if graph:
                 info.update(graph)
             diagrams.append(info)
         elif not href:
-            # SVG without data URI — still record it
             diagrams.append(info)
 
-    # ----- Strategy 2: Mermaid code blocks ----------------------------------
+
+def _extract_mermaid_diagrams(soup: BeautifulSoup, diagrams: list[dict]) -> None:
+    """Strategy 2: Mermaid code blocks and divs."""
     for pre in soup.find_all("pre"):
         code = pre.find("code")
         if code:
             classes = code.get("class", [])
             class_str = " ".join(classes) if isinstance(classes, list) else str(classes)
             if "mermaid" in class_str.lower():
-                diagrams.append({
-                    "type": "mermaid",
-                    "content": code.get_text(strip=True),
-                })
+                diagrams.append(
+                    {"type": "mermaid", "content": code.get_text(strip=True)}
+                )
 
     for div in soup.find_all("div", class_=re.compile(r"mermaid", re.I)):
         text = div.get_text(strip=True)
         if text:
             diagrams.append({"type": "mermaid", "content": text})
 
-    # ----- Strategy 3: Fallback — bare SVGs and diagram images --------------
-    # Only pick up SVGs that were NOT already captured by Strategy 1
+
+def _extract_fallback_diagrams(soup: BeautifulSoup, diagrams: list[dict]) -> None:
+    """Strategy 3: Bare SVGs with titles and diagram images."""
     for svg in soup.find_all("svg"):
         if svg.find_parent("code-documentation-diagram-inline"):
-            continue  # already handled
+            continue
         title_elem = svg.find("title")
         if title_elem:
-            diagrams.append({
-                "type": "svg",
-                "title": title_elem.get_text(strip=True),
-            })
+            diagrams.append({"type": "svg", "title": title_elem.get_text(strip=True)})
 
-    for img in soup.find_all("img", alt=re.compile(r"diagram|architecture|flow|image", re.I)):
-        diagrams.append({
-            "type": "image",
-            "alt": img.get("alt", ""),
-            "src": img.get("src", ""),
-        })
-
-    return diagrams
+    for img in soup.find_all(
+        "img", alt=re.compile(r"diagram|architecture|flow|image", re.I)
+    ):
+        diagrams.append(
+            {"type": "image", "alt": img.get("alt", ""), "src": img.get("src", "")}
+        )
 
 
 def _extract_svg_graph(href: str) -> dict | None:
@@ -343,62 +351,70 @@ def _extract_svg_graph(href: str) -> dict | None:
         edge_groups = inner.find_all("g", class_="edge")
 
         if node_groups or edge_groups:
-            # Graphviz structured SVG
-            nodes = []
-            for g in node_groups:
-                title_el = g.find("title")
-                node_id = title_el.get_text(strip=True) if title_el else ""
-                texts = [t.get_text(strip=True) for t in g.find_all("text") if t.get_text(strip=True)]
-                label = " ".join(texts)
-                if node_id or label:
-                    nodes.append({"id": node_id, "label": label})
+            return _parse_graphviz_groups(node_groups, edge_groups)
 
-            edges = []
-            for g in edge_groups:
-                title_el = g.find("title")
-                edge_id = title_el.get_text(strip=True) if title_el else ""
-                texts = [t.get_text(strip=True) for t in g.find_all("text") if t.get_text(strip=True)]
-                edge_label = " ".join(texts)
-
-                # Parse "A->B" from the <title>
-                src, dst = "", ""
-                if "->" in edge_id:
-                    parts = edge_id.split("->", 1)
-                    src, dst = parts[0].strip(), parts[1].strip()
-
-                edge_entry: dict[str, str] = {}
-                if src:
-                    edge_entry["from"] = src
-                if dst:
-                    edge_entry["to"] = dst
-                if edge_label:
-                    edge_entry["label"] = edge_label
-                if edge_entry:
-                    edges.append(edge_entry)
-
-            # Build flat content summary for backward compat
-            node_labels = [n["label"] for n in nodes if n.get("label")]
-            edge_descs = []
-            for e in edges:
-                desc = f"{e.get('from', '?')} -> {e.get('to', '?')}"
-                if e.get("label"):
-                    desc += f" [{e['label']}]"
-                edge_descs.append(desc)
-
-            content = ", ".join(node_labels)
-            return {
-                "nodes": nodes,
-                "edges": edges,
-                "content": content,
-            }
-        else:
-            # No Graphviz groups — fall back to flat text extraction
-            texts = [t.get_text(strip=True) for t in inner.find_all("text") if t.get_text(strip=True)]
-            if texts:
-                return {"content": ", ".join(texts)}
-            return None
-    except Exception:
+        # No Graphviz groups — fall back to flat text extraction
+        texts = [
+            t.get_text(strip=True)
+            for t in inner.find_all("text")
+            if t.get_text(strip=True)
+        ]
+        if texts:
+            return {"content": ", ".join(texts)}
         return None
+    except Exception:  # pylint: disable=broad-except
+        return None
+
+
+def _parse_graphviz_groups(node_groups: list[Tag], edge_groups: list[Tag]) -> dict:
+    """Extract structured graph data from Graphviz ``<g>`` groups."""
+    nodes = []
+    for g in node_groups:
+        title_el = g.find("title")
+        node_id = title_el.get_text(strip=True) if title_el else ""
+        label = " ".join(
+            t.get_text(strip=True) for t in g.find_all("text") if t.get_text(strip=True)
+        )
+        if node_id or label:
+            nodes.append({"id": node_id, "label": label})
+
+    edges = _parse_graphviz_edges(edge_groups)
+
+    # Build flat content summary for backward compat
+    node_labels = [n["label"] for n in nodes if n.get("label")]
+    return {
+        "nodes": nodes,
+        "edges": edges,
+        "content": ", ".join(node_labels),
+    }
+
+
+def _parse_graphviz_edges(edge_groups: list[Tag]) -> list[dict[str, str]]:
+    """Parse ``<g class="edge">`` groups into structured edge dicts."""
+    edges: list[dict[str, str]] = []
+    for g in edge_groups:
+        title_el = g.find("title")
+        edge_id = title_el.get_text(strip=True) if title_el else ""
+        edge_label = " ".join(
+            t.get_text(strip=True) for t in g.find_all("text") if t.get_text(strip=True)
+        )
+
+        # Parse "A->B" from the <title>
+        src, dst = "", ""
+        if "->" in edge_id:
+            parts = edge_id.split("->", 1)
+            src, dst = parts[0].strip(), parts[1].strip()
+
+        entry: dict[str, str] = {}
+        if src:
+            entry["from"] = src
+        if dst:
+            entry["to"] = dst
+        if edge_label:
+            entry["label"] = edge_label
+        if entry:
+            edges.append(entry)
+    return edges
 
 
 # ---------------------------------------------------------------------------
@@ -452,7 +468,11 @@ def fetch_wiki_page(repo_url: str) -> WikiPage:
 
     logger.info(
         "Parsed %s: %d sections, %d TOC items, %d diagrams, %d chars",
-        clean_repo, len(sections), len(toc), len(diagrams), len(raw_text),
+        clean_repo,
+        len(sections),
+        len(toc),
+        len(diagrams),
+        len(raw_text),
     )
     return page
 
@@ -466,6 +486,35 @@ def get_section_by_title(page: WikiPage, section_title: str) -> WikiSection | No
     return None
 
 
+def _diagram_to_lines(index: int, diagram: dict) -> list[str]:
+    """Render a single diagram dict as summary lines."""
+    label = diagram.get("section") or diagram.get("title") or f"Diagram {index}"
+    lines = [f"**{index}. {label}**"]
+
+    nodes = diagram.get("nodes", [])
+    edges = diagram.get("edges", [])
+
+    if nodes or edges:
+        if nodes:
+            labels = [n.get("label", n.get("id", "?")) for n in nodes]
+            lines.append(f"  Entities: {', '.join(labels)}")
+        if edges:
+            lines.append("  Relationships:")
+            for e in edges:
+                rel = f"{e.get('from', '?')} -> {e.get('to', '?')}"
+                if e.get("label"):
+                    rel += f" [{e['label']}]"
+                lines.append(f"    - {rel}")
+    else:
+        content = diagram.get("content", "")
+        if content:
+            preview = content[:200] + ("..." if len(content) > 200 else "")
+            lines.append(f"  Labels: {preview}")
+
+    lines.append("")  # blank separator
+    return lines
+
+
 def page_to_markdown(page: WikiPage, *, max_chars: int = 0) -> str:
     """Convert a WikiPage to a markdown-formatted string."""
     parts = [f"# {page.title}\n"]
@@ -474,37 +523,7 @@ def page_to_markdown(page: WikiPage, *, max_chars: int = 0) -> str:
     if page.diagrams:
         lines = [f"\n**Diagrams ({len(page.diagrams)}):**\n"]
         for i, d in enumerate(page.diagrams):
-            section = d.get("section", "")
-            title = d.get("title", "")
-            label = section or title or f"Diagram {i}"
-            lines.append(f"**{i}. {label}**")
-
-            nodes = d.get("nodes", [])
-            edges = d.get("edges", [])
-
-            if nodes or edges:
-                # Structured graph — show entities and relationships
-                if nodes:
-                    node_labels = [n.get("label", n.get("id", "?")) for n in nodes]
-                    lines.append(f"  Entities: {', '.join(node_labels)}")
-                if edges:
-                    rel_parts = []
-                    for e in edges:
-                        rel = f"{e.get('from', '?')} -> {e.get('to', '?')}"
-                        if e.get("label"):
-                            rel += f" [{e['label']}]"
-                        rel_parts.append(rel)
-                    lines.append("  Relationships:")
-                    for rel in rel_parts:
-                        lines.append(f"    - {rel}")
-            else:
-                # Flat content fallback
-                content = d.get("content", "")
-                if content:
-                    preview = content[:200] + ("..." if len(content) > 200 else "")
-                    lines.append(f"  Labels: {preview}")
-            lines.append("")  # blank line between diagrams
-
+            lines.extend(_diagram_to_lines(i, d))
         parts.append("\n".join(lines))
 
     for section in page.sections:
