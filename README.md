@@ -97,18 +97,42 @@ docker run -e CODEWIKI_MAX_RETRIES=5 -e CODEWIKI_VERBOSE=true codewiki-mcp
 
 ### MCP Client Setup
 
-**VS Code** (`.vscode/mcp.json`):
+#### VS Code — Command Palette (recommended)
+
+The fastest way to add CodeWiki MCP to VS Code:
+
+1. Open the **Command Palette** — press `Ctrl+Shift+P` (Windows/Linux) or `Cmd+Shift+P` (macOS)
+2. Type **MCP** and select **MCP: Add Server**
+3. Choose **Command (stdio)** as the server type
+4. Enter the command: `codewiki-mcp`
+5. Enter a server ID — e.g. `codewikiMcp` (VS Code recommends camelCase)
+6. Select a configuration scope:
+   - **User** — available across all VS Code workspaces (saved in your global user `mcp.json`)
+   - **Workspace** — available only in the current workspace (saved in `.vscode/mcp.json`)
+7. VS Code creates and opens the `mcp.json` file — click **Start** above the server name to launch it
+8. When prompted, confirm that you trust the server
+
+> **Tip:** Use **MCP: List Servers** from the Command Palette to start, stop, restart, or view logs for any configured server.
+
+#### VS Code — Manual JSON config
+
+Alternatively, create or edit `.vscode/mcp.json` in your workspace root:
+
 ```json
 {
-  "mcpServers": {
-    "codewiki": {
+  "servers": {
+    "codewikiMcp": {
+      "type": "stdio",
       "command": "codewiki-mcp"
     }
   }
 }
 ```
 
-**Claude Desktop** (`claude_desktop_config.json`):
+#### Claude Desktop
+
+Add to your `claude_desktop_config.json`:
+
 ```json
 {
   "mcpServers": {
