@@ -25,38 +25,37 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that p
 
 ## Installation
 
-### Option A — Install as a CLI command (recommended)
+### Option A — Install from PyPI (recommended)
 
 ```bash
+pip install codewiki-mcp
+playwright install chromium
+```
+
+That's it. You now have the `codewiki-mcp` command available globally:
+
+```bash
+codewiki-mcp                    # stdio (default)
+codewiki-mcp --sse --port 8080  # SSE transport
+codewiki-mcp --verbose           # debug logging
+```
+
+### Option B — Install from source
+
+```bash
+git clone https://github.com/Cloudmeru/CodeWiki-MCP.git
+cd CodeWiki-MCP
 pip install .
 playwright install chromium
-
-# Now you can run:
-codewiki-mcp
-codewiki-mcp --sse --port 8080
-codewiki-mcp --verbose
 ```
 
-### Option B — Install dependencies only
+For development (with test dependencies):
 
 ```bash
-pip install mcp pydantic httpx beautifulsoup4 lxml playwright cachetools
-playwright install chromium
-
-python -m codewiki_mcp
+pip install -e ".[test]"
 ```
 
-### Option C — Build a standalone `.exe`
-
-```bash
-pip install ".[build]"
-python build_exe.py
-# → dist/codewiki-mcp.exe (Windows) or dist/codewiki-mcp (macOS/Linux)
-```
-
-> **Note:** The `.exe` still requires Playwright Chromium on the target machine for the chat tool.
-
-### Option D — Docker
+### Option C — Docker
 
 ```bash
 docker build -t codewiki-mcp .
@@ -84,7 +83,7 @@ docker run -e CODEWIKI_MAX_RETRIES=5 -e CODEWIKI_VERBOSE=true codewiki-mcp
 | `CODEWIKI_RESPONSE_WAIT_TIMEOUT` | `45` | Chat response wait timeout (seconds) |
 | `CODEWIKI_MAX_RETRIES` | `2` | Max retry attempts |
 | `CODEWIKI_RETRY_DELAY` | `3` | Delay between retries (seconds) |
-| `CODEWIKI_RESPONSE_MAX_CHARS` | `8000` | Max response character count |
+| `CODEWIKI_RESPONSE_MAX_CHARS` | `30000` | Max response character count |
 | `CODEWIKI_CACHE_TTL` | `300` | Page cache TTL (seconds) |
 | `CODEWIKI_CACHE_MAX_SIZE` | `50` | Max pages in cache |
 | `CODEWIKI_VERBOSE` | `false` | Enable debug logging |
@@ -222,7 +221,6 @@ codewiki_mcp/
 ├── browser.py         # Shared Playwright browser singleton + persistent event loop
 ├── cache.py           # TTLCache for rendered pages
 ├── config.py          # Env-var-driven configuration + SPA selectors
-├── driver.py          # Deprecated Selenium shim (no-op)
 ├── parser.py          # Playwright renderer + BeautifulSoup section parser
 ├── server.py          # MCP server setup + CLI
 ├── types.py           # Pydantic schemas + response models
