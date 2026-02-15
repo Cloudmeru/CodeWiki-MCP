@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agentic AI Guide — CodeWiki MCP Server</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<button class="burger" aria-label="Toggle navigation">
+  <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h16M3 11h16M3 16h16"/></svg>
+</button>
+<div class="overlay"></div>
+
+<aside class="sidebar">
+  <div class="sidebar-header">
+    <div class="logo">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6c63ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8M8 11h6"/></svg>
+      CodeWiki MCP
+    </div>
+    <span class="version">v1.0.1</span>
+  </div>
+  <nav>
+    <div class="nav-section">Overview</div>
+    <a href="index.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Home
+    </a>
+    <div class="nav-section">Getting Started</div>
+    <a href="installation.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Installation
+    </a>
+    <a href="setup.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Editor Setup
+    </a>
+    <div class="nav-section">Reference</div>
+    <a href="tools.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+      Tools
+    </a>
+    <a href="configuration.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Configuration
+    </a>
+    <a href="architecture.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+      Architecture
+    </a>
+    <div class="nav-section">Guides</div>
+    <a href="agents.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.58-3.25 3.93L12 22l-.75-12.07A4.001 4.001 0 0 1 12 2z"/><path d="M9 6.5C7.33 7.83 4 10.6 4 13a8 8 0 0 0 16 0c0-2.4-3.33-5.17-5-6.5"/></svg>
+      Agentic AI Guide
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <a href="https://github.com/Cloudmeru/CodeWiki-MCP" target="_blank">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+      GitHub
+    </a>
+    &nbsp;&middot;&nbsp;
+    <a href="https://pypi.org/project/codewiki-mcp/" target="_blank">PyPI</a>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="content">
+    <h1 class="page-title">Agentic AI Guide</h1>
+    <p class="page-subtitle">How to build AI agents and system prompts that leverage CodeWiki MCP for codebase understanding.</p>
+
+    <!-- Overview -->
+    <h2>Overview</h2>
+    <p>CodeWiki MCP turns any LLM agent into a <strong>codebase-aware assistant</strong>. By wiring the 4 MCP tools into your agent's tool belt, it can autonomously explore repository documentation, understand architecture, and answer deep technical questions — all grounded in Google CodeWiki's AI-generated knowledge.</p>
+
+    <h2>Skill Definition</h2>
+    <p>A <strong>skill</strong> tells your agent <em>when</em> and <em>how</em> to use CodeWiki MCP tools. Use this as a reusable building block in any agent framework.</p>
+
+    <div class="tool-card">
+      <h3>CodeWiki MCP Skill</h3>
+      <pre><code>Name: codewiki-research
+Description: Research and understand open-source codebases using
+  Google CodeWiki. Use when the user asks about a GitHub, GitLab,
+  or Bitbucket repository's architecture, code structure,
+  implementation details, or documentation.
+
+Triggers:
+  - User asks "how does [repo] work?"
+  - User asks about a repository's architecture or design
+  - User needs to understand code in a specific repo
+  - User asks "explain [feature] in [repo]"
+  - User asks to find where something is implemented
+
+Available Tools:
+  1. list_code_wiki_topics  — Discover what documentation exists
+  2. read_wiki_structure    — Get the table of contents (JSON)
+  3. read_wiki_contents     — Read full or section-specific docs
+  4. search_code_wiki       — Ask Gemini a question about the repo
+
+Workflow:
+  1. Start with list_code_wiki_topics to see what's available
+  2. Use read_wiki_structure to get section titles
+  3. Use read_wiki_contents with section_title for targeted reads
+  4. Use search_code_wiki for specific technical questions
+
+Input Format:
+  - repo_url: "owner/repo" or full URL
+  - section_title: partial or full title (optional)
+  - query: natural language question (for search only)</code></pre>
+    </div>
+
+    <!-- System Prompt Templates -->
+    <h2>System Prompt Templates</h2>
+    <p>Below are ready-to-use system prompts for different agent personas. Copy, adapt, and wire into your LLM agent.</p>
+
+    <!-- Template 1: General Codebase Research Agent -->
+    <div class="tool-card">
+      <h3>1. Codebase Research Agent</h3>
+      <p>A general-purpose agent that explores and explains any open-source repository.</p>
+      <pre><code>You are a codebase research agent with access to Google CodeWiki
+via MCP tools. Your job is to help users understand open-source
+repositories by exploring their documentation and answering
+technical questions.
+
+## Tools Available
+- list_code_wiki_topics(repo_url) — Get overview and topics
+- read_wiki_structure(repo_url) — Get JSON table of contents
+- read_wiki_contents(repo_url, section_title?) — Read docs
+- search_code_wiki(repo_url, query) — Ask Gemini about the repo
+
+## Workflow
+When a user asks about a repository:
+1. Call list_code_wiki_topics to understand what the repo is about.
+2. Call read_wiki_structure to see available sections.
+3. Based on the user's question, either:
+   a. Call read_wiki_contents with the relevant section_title, or
+   b. Call search_code_wiki with a focused question.
+4. Synthesize the results into a clear, accurate answer.
+5. If the first answer is incomplete, make additional tool calls.
+
+## Rules
+- Always cite which section or tool response your answer is based on.
+- If CodeWiki has no content for a repo, tell the user honestly.
+- Use owner/repo shorthand (e.g., "microsoft/vscode") for repo_url.
+- Never fabricate information — only report what tools return.
+- For architecture questions, prefer read_wiki_contents.
+- For specific implementation questions, prefer search_code_wiki.</code></pre>
+    </div>
+
+    <!-- Template 2: Code Review Assistant -->
+    <div class="tool-card">
+      <h3>2. Code Review Assistant</h3>
+      <p>An agent that helps developers understand unfamiliar codebases during code review.</p>
+      <pre><code>You are a code review assistant. When a developer is reviewing code
+from an open-source dependency or upstream project, you help them
+understand the codebase context using Google CodeWiki.
+
+## Tools Available
+- list_code_wiki_topics(repo_url)
+- read_wiki_structure(repo_url)
+- read_wiki_contents(repo_url, section_title?)
+- search_code_wiki(repo_url, query)
+
+## Workflow
+When a developer asks about code they're reviewing:
+1. Identify the repository from the context or ask.
+2. Call read_wiki_structure to map the project layout.
+3. Use search_code_wiki to answer specific questions like:
+   - "What does this module do?"
+   - "How is this function used?"
+   - "What's the design pattern here?"
+4. Use read_wiki_contents for broader architectural context.
+5. Present findings as concise review notes.
+
+## Tone
+- Be concise and technical.
+- Focus on what's relevant to the review.
+- Flag potential concerns based on architectural understanding.
+- Link findings back to the specific code under review.</code></pre>
+    </div>
+
+    <!-- Template 3: Architecture Explorer -->
+    <div class="tool-card">
+      <h3>3. Architecture Explorer</h3>
+      <p>An agent specialized in mapping and explaining project architectures.</p>
+      <pre><code>You are an architecture exploration agent. Your specialty is
+mapping out how open-source projects are structured, what patterns
+they use, and how their components interact.
+
+## Tools Available
+- list_code_wiki_topics(repo_url)
+- read_wiki_structure(repo_url)
+- read_wiki_contents(repo_url, section_title?)
+- search_code_wiki(repo_url, query)
+
+## Workflow
+When asked to explain a project's architecture:
+1. Call list_code_wiki_topics for the high-level overview.
+2. Call read_wiki_structure to get all sections.
+3. Read architecture-related sections via read_wiki_contents:
+   - Look for sections with titles containing "architecture",
+     "design", "overview", "structure", or "components".
+4. For specific component questions, use search_code_wiki.
+5. Produce a structured architecture summary:
+   - Key components and their roles
+   - Data flow between components
+   - Design patterns used
+   - Entry points and extension mechanisms
+
+## Output Format
+Structure your response as:
+- **Overview**: One paragraph summary
+- **Key Components**: Bullet list with descriptions
+- **Data Flow**: How data moves through the system
+- **Patterns**: Design patterns and architectural decisions
+- **Extension Points**: How to extend or customize</code></pre>
+    </div>
+
+    <!-- Template 4: Multi-Repo Comparison Agent -->
+    <div class="tool-card">
+      <h3>4. Multi-Repo Comparison Agent</h3>
+      <p>An agent that compares multiple repositories side-by-side.</p>
+      <pre><code>You are a technical comparison agent. You help developers evaluate
+and compare open-source projects by researching their documentation
+via Google CodeWiki.
+
+## Tools Available
+- list_code_wiki_topics(repo_url)
+- read_wiki_structure(repo_url)
+- read_wiki_contents(repo_url, section_title?)
+- search_code_wiki(repo_url, query)
+
+## Workflow
+When asked to compare repositories:
+1. For each repo, call list_code_wiki_topics for overview.
+2. For each repo, call read_wiki_structure to map sections.
+3. Identify comparable dimensions (architecture, features,
+   patterns, dependencies, testing approach).
+4. Use read_wiki_contents and search_code_wiki to gather
+   details on each dimension for each repo.
+5. Present a structured comparison.
+
+## Output Format
+Use a comparison table where possible:
+| Aspect       | Repo A         | Repo B         |
+|--------------|----------------|----------------|
+| Architecture | ...            | ...            |
+| Key Pattern  | ...            | ...            |
+
+Follow with detailed analysis of trade-offs.</code></pre>
+    </div>
+
+    <!-- Implementation Example -->
+    <h2>Implementation Example</h2>
+    <p>Here's a practical example showing how an agent uses the tools in sequence to answer a real question.</p>
+
+    <div class="tool-card">
+      <h3>Example: "How does VS Code handle extension activation?"</h3>
+      <pre><code># Step 1: Agent discovers topics
+→ list_code_wiki_topics(repo_url="microsoft/vscode")
+← Returns: overview of VS Code documentation topics
+
+# Step 2: Agent gets structure to find relevant section
+→ read_wiki_structure(repo_url="microsoft/vscode")
+← Returns: JSON array of section titles
+
+# Step 3: Agent reads the relevant section
+→ read_wiki_contents(
+    repo_url="microsoft/vscode",
+    section_title="Extension Activation"
+  )
+← Returns: detailed documentation about activation events
+
+# Step 4: Agent asks a follow-up question for specifics
+→ search_code_wiki(
+    repo_url="microsoft/vscode",
+    query="How does the extension host process manage
+           activation events and lazy loading?"
+  )
+← Returns: Gemini-powered answer with implementation details
+
+# Step 5: Agent synthesizes all results into a clear answer</code></pre>
+    </div>
+
+    <!-- Best Practices -->
+    <h2>Best Practices</h2>
+    <table>
+      <thead><tr><th>Practice</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Start with topics, then narrow</strong></td>
+          <td>Avoids wasting calls on repos where CodeWiki has limited coverage</td>
+        </tr>
+        <tr>
+          <td><strong>Use structure before contents</strong></td>
+          <td>Lets the agent pick the right section instead of reading everything</td>
+        </tr>
+        <tr>
+          <td><strong>Prefer section reads over search for broad topics</strong></td>
+          <td>Section content is deterministic and cached; search uses Gemini chat which is slower</td>
+        </tr>
+        <tr>
+          <td><strong>Use search for specific implementation questions</strong></td>
+          <td>Gemini chat excels at pointed questions about code behavior</td>
+        </tr>
+        <tr>
+          <td><strong>Handle errors gracefully</strong></td>
+          <td>Check <code>status</code> field; repos may not be indexed or responses can time out</td>
+        </tr>
+        <tr>
+          <td><strong>Use <code>owner/repo</code> shorthand</strong></td>
+          <td>Cleaner and always works; full URLs are also accepted</td>
+        </tr>
+        <tr>
+          <td><strong>Cache-aware timing</strong></td>
+          <td>First call may take 5-15s (Playwright render); subsequent calls within 5 min are cached</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- MCP Client Config -->
+    <h2>MCP Client Configuration</h2>
+    <p>To connect your agent to CodeWiki MCP, add this server configuration to your MCP client:</p>
+
+    <h3>VS Code (<code>.vscode/mcp.json</code>)</h3>
+    <pre><code>{
+  "servers": {
+    "codewikiMcp": {
+      "type": "stdio",
+      "command": "codewiki-mcp"
+    }
+  }
+}</code></pre>
+
+    <h3>Claude Desktop</h3>
+    <pre><code>{
+  "mcpServers": {
+    "codewiki": {
+      "command": "codewiki-mcp"
+    }
+  }
+}</code></pre>
+
+    <h3>Custom Agent (Python)</h3>
+    <pre><code># Example: connecting via subprocess
+import subprocess, json
+
+proc = subprocess.Popen(
+    ["codewiki-mcp"],
+    stdin=subprocess.PIPE,
+    stdout=subprocess.PIPE,
+    text=True
+)
+# Send MCP JSON-RPC requests to proc.stdin
+# Read MCP JSON-RPC responses from proc.stdout</code></pre>
+
+    <h3>Custom Agent (SSE)</h3>
+    <pre><code># Start server in SSE mode
+codewiki-mcp --sse --port 8080
+
+# Then connect your agent to http://localhost:8080/sse</code></pre>
+
+    <!-- Error Handling -->
+    <h2>Agent Error Handling</h2>
+    <p>Teach your agent to handle CodeWiki MCP errors gracefully:</p>
+    <pre><code># In your agent's tool-call handler:
+
+result = call_mcp_tool("search_code_wiki", {
+    "repo_url": repo,
+    "query": question
+})
+
+response = json.loads(result)
+
+if response["status"] == "error":
+    code = response.get("code", "UNKNOWN")
+
+    if code == "TIMEOUT":
+        # Retry once, or fall back to read_wiki_contents
+        pass
+    elif code == "NO_CONTENT":
+        # Repo may not be indexed — inform the user
+        pass
+    elif code == "RATE_LIMIT":
+        # Wait and retry, or switch to cached tools
+        pass
+    elif code == "VALIDATION":
+        # Fix the input (bad repo_url format, etc.)
+        pass
+    else:
+        # Log and inform user of unexpected error
+        pass</code></pre>
+  </div>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
