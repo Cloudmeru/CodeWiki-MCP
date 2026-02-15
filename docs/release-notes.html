@@ -27,7 +27,7 @@
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6c63ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8M8 11h6"/></svg>
       CodeWiki MCP
     </div>
-    <span class="version">v1.0.2</span>
+    <span class="version">v1.0.4</span>
   </div>
   <nav>
     <div class="nav-section">Overview</div>
@@ -90,6 +90,48 @@
 
   <div class="content">
     <h2>Latest Releases</h2>
+
+    <section class="release">
+      <h3>v1.0.4 — 2026-02-16</h3>
+      <ul>
+        <li><strong>Critical bug fixes:</strong></li>
+        <ul>
+          <li><strong>Event-loop deadlock</strong> — <code>_search_impl</code> runs on the browser event loop; calling the sync <code>get_or_create_session()</code> wrapper tried to submit a coroutine to the <em>same</em> loop and blocked, causing a 60 s deadlock per attempt (~123 s total). Fixed by using <code>await _get_or_create()</code> / <code>await _release()</code> directly.</li>
+          <li><strong>Double-submit timeout</strong> — after pressing Enter the send button becomes disabled; the old <code>_click_submit()</code> then waited 30 s trying to click the disabled button. New <code>_submit_query()</code> checks the button state first and only clicks as a fallback.</li>
+        </ul>
+        <li><strong>Browser stealth layer:</strong></li>
+        <ul>
+          <li>New <code>stealth.py</code> module — patches <code>navigator.webdriver</code>, <code>chrome.runtime</code>, plugins, languages, WebGL vendor, permissions, and window dimensions.</li>
+          <li>Human-like input helpers: <code>human_type()</code> (per-character jitter 35–120 ms), <code>human_click()</code> (mouse-move + click), <code>random_delay()</code>.</li>
+          <li>Stealth context options: viewport jitter, locale, timezone, Sec-CH-UA client hints, device scale factor.</li>
+          <li>Launch args: <code>--disable-blink-features=AutomationControlled</code>, <code>--disable-infobars</code>.</li>
+          <li>User-Agent updated to Chrome/132.</li>
+        </ul>
+        <li><strong>Testing &amp; diagnostics:</strong></li>
+        <ul>
+          <li>22 new stealth tests; 151 total tests passing.</li>
+          <li>Added <code>tests/diagnose_search.py</code> — standalone diagnostic script for headless chat debugging.</li>
+        </ul>
+      </ul>
+    </section>
+
+    <section class="release">
+      <h3>v1.0.3 — 2026-02-16</h3>
+      <ul>
+        <li><strong>Anti-loop / agent-safety optimizations:</strong></li>
+        <ul>
+          <li><strong>In-flight deduplication</strong> — concurrent identical tool calls are collapsed into one, preventing duplicate work.</li>
+          <li><strong>Rate limiting</strong> — max 10 calls per 60 s per repository URL; returns a clear <code>RATE_LIMITED</code> error when exceeded.</li>
+          <li><strong>Content hash</strong> — every response includes a short hash so agents can detect duplicate content without re-reading.</li>
+          <li><strong>Topic cache</strong> — <code>list_code_wiki_topics</code> results are cached for 5 min with a <code>size_hint</code> field to guide agents.</li>
+          <li><strong>Idempotency key</strong> — <code>repo_url::content_hash</code> key in every response for agent-level dedup.</li>
+        </ul>
+        <li><strong>Testing:</strong></li>
+        <ul>
+          <li>28 new tests for dedup, rate limiting, content hash, topic cache, and idempotency. Total: 129 tests passing.</li>
+        </ul>
+      </ul>
+    </section>
 
     <section class="release">
       <h3>v1.0.2 — 2026-02-16</h3>
