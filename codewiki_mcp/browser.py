@@ -17,6 +17,7 @@ import logging
 import threading
 
 from . import config
+from .stealth import apply_stealth_scripts, stealth_context_options
 
 logger = logging.getLogger("CodeWiki")
 
@@ -85,9 +86,14 @@ async def _get_browser():
                 "--disable-dev-shm-usage",
                 "--disable-gpu",
                 "--disable-extensions",
+                # Anti-bot-detection flags
+                "--disable-blink-features=AutomationControlled",
+                "--disable-infobars",
+                "--window-size=1920,1080",
+                "--start-maximized",
             ],
         )
-        logger.debug("Playwright browser launched")
+        logger.debug("Playwright browser launched (stealth args applied)")
     return _browser
 
 
@@ -115,11 +121,11 @@ async def cleanup_browser():
 async def _render_page_async(url: str) -> str:
     """Navigate to *url* with Playwright and return the rendered HTML."""
     browser = await _get_browser()
-    context = await browser.new_context(
-        user_agent=config.USER_AGENT,
-        viewport={"width": 1920, "height": 1080},
-    )
+    ctx_opts = stealth_context_options()
+    ctx_opts["user_agent"] = config.USER_AGENT
+    context = await browser.new_context(**ctx_opts)
     page = await context.new_page()
+    await apply_stealth_scripts(page)
     try:
         logger.info("Rendering %s via Playwright...", url)
         await page.goto(

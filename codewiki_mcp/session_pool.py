@@ -23,6 +23,7 @@ from dataclasses import dataclass
 
 from . import config
 from .browser import _get_browser, run_in_browser_loop
+from .stealth import apply_stealth_scripts, stealth_context_options
 
 logger = logging.getLogger("CodeWiki")
 
@@ -68,11 +69,11 @@ async def _evict_oldest() -> None:
 async def _create_entry(url: str) -> _PoolEntry:
     """Create a new browser context + page for *url*."""
     browser = await _get_browser()
-    context = await browser.new_context(
-        user_agent=config.USER_AGENT,
-        viewport={"width": 1920, "height": 1080},
-    )
+    ctx_opts = stealth_context_options()
+    ctx_opts["user_agent"] = config.USER_AGENT
+    context = await browser.new_context(**ctx_opts)
     page = await context.new_page()
+    await apply_stealth_scripts(page)
 
     await page.goto(
         url,

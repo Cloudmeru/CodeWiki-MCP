@@ -105,12 +105,12 @@ VERBOSE: bool = _env_bool("CODEWIKI_VERBOSE", False)
 CODEWIKI_BASE_URL: str = os.environ.get("CODEWIKI_BASE_URL", "https://codewiki.google")
 
 # ---------------------------------------------------------------------------
-# User agent
+# User agent — keep in sync with a recent stable Chrome release
 # ---------------------------------------------------------------------------
 USER_AGENT: str = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/120.0.0.0 Safari/537.36"
+    "Chrome/132.0.0.0 Safari/537.36"
 )
 
 # ---------------------------------------------------------------------------

@@ -18,6 +18,13 @@ from ..browser import _get_browser, run_in_browser_loop
 from ..cache import get_cached_search, set_cached_search
 from ..rate_limit import check_rate_limit
 from ..session_pool import get_or_create_session, release_session
+from ..stealth import (
+    apply_stealth_scripts,
+    human_click,
+    human_type,
+    random_delay,
+    stealth_context_options,
+)
 from ..types import (
     ErrorCode,
     ResponseMeta,
@@ -224,19 +231,21 @@ async def _search_impl(inp: SearchInput) -> ToolResponse:
                 query=inp.query,
             )
 
-        # Type the query
-        await chat_input.click()
-        await chat_input.fill("")
-        await asyncio.sleep(config.INPUT_CLEAR_DELAY)
-        await chat_input.fill(inp.query)
-        await asyncio.sleep(config.INPUT_TYPE_DELAY)
+        # Type the query (human-like: char-by-char with jitter)
+        await human_click(page, chat_input)
+        await random_delay(0.2, 0.5)
+        await chat_input.fill("")  # clear first
+        await random_delay(0.2, 0.4)
+        await human_type(chat_input, inp.query)
+        await random_delay(0.3, 0.8)
 
         # Wait for the send button to become enabled
         await _wait_for_submit_enabled(page, timeout_ms=3000)
 
         # Submit via Enter key first, then click button as fallback
+        await random_delay(0.1, 0.3)
         await chat_input.press("Enter")
-        await asyncio.sleep(0.5)
+        await random_delay(0.3, 0.8)
         await _click_submit(page)
 
         # Wait a bit before polling for response
@@ -286,11 +295,11 @@ async def _ensure_chat_open_async(page) -> bool:
 async def _search_fresh_context(inp: SearchInput, target_url: str) -> ToolResponse:
     """Fallback: create a one-off browser context (pre-v1.0.2 behaviour)."""
     browser = await _get_browser()
-    context = await browser.new_context(
-        user_agent=config.USER_AGENT,
-        viewport={"width": 1920, "height": 1080},
-    )
+    ctx_opts = stealth_context_options()
+    ctx_opts["user_agent"] = config.USER_AGENT
+    context = await browser.new_context(**ctx_opts)
     page = await context.new_page()
+    await apply_stealth_scripts(page)
 
     try:
         await page.goto(
@@ -325,14 +334,16 @@ async def _search_fresh_context(inp: SearchInput, target_url: str) -> ToolRespon
                 query=inp.query,
             )
 
-        await chat_input.click()
+        await human_click(page, chat_input)
+        await random_delay(0.2, 0.5)
         await chat_input.fill("")
-        await asyncio.sleep(config.INPUT_CLEAR_DELAY)
-        await chat_input.fill(inp.query)
-        await asyncio.sleep(config.INPUT_TYPE_DELAY)
+        await random_delay(0.2, 0.4)
+        await human_type(chat_input, inp.query)
+        await random_delay(0.3, 0.8)
         await _wait_for_submit_enabled(page, timeout_ms=3000)
+        await random_delay(0.1, 0.3)
         await chat_input.press("Enter")
-        await asyncio.sleep(0.5)
+        await random_delay(0.3, 0.8)
         await _click_submit(page)
         await asyncio.sleep(config.RESPONSE_INITIAL_DELAY_SECONDS)
 
