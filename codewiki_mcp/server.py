@@ -33,6 +33,14 @@ def _shutdown(signum: int, _frame) -> None:
     sig_name = signal.Signals(signum).name
     logger.info("Received %s — shutting down…", sig_name)
 
+    # Clean up the session pool (best-effort)
+    try:
+        from .session_pool import cleanup_pool  # pylint: disable=import-outside-toplevel
+
+        cleanup_pool()
+    except Exception:  # pylint: disable=broad-except
+        pass
+
     # Clean up the shared Playwright browser (best-effort)
     try:
         from .browser import (  # pylint: disable=import-outside-toplevel
@@ -125,7 +133,13 @@ def main(argv: list[str] | None = None) -> None:
     except SystemExit:
         pass
     finally:
-        # Ensure Playwright cleanup even if signal handler didn't fire
+        # Ensure session pool + Playwright cleanup even if signal handler didn't fire
+        try:
+            from .session_pool import cleanup_pool  # pylint: disable=import-outside-toplevel
+
+            cleanup_pool()
+        except Exception:  # pylint: disable=broad-except
+            pass
         try:
             from .browser import (  # pylint: disable=import-outside-toplevel
                 cleanup_browser,

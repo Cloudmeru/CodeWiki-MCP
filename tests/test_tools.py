@@ -8,6 +8,10 @@ import json
 from codewiki_mcp.server import create_server, parse_args
 from tests.conftest import make_wiki_page
 
+# All tools that go through _helpers.fetch_page_or_error need their
+# fetch_wiki_page mock applied at the _helpers import location.
+_HELPERS_FETCH = "codewiki_mcp.tools._helpers.fetch_wiki_page"
+
 
 # ---------------------------------------------------------------------------
 # CLI args
@@ -54,7 +58,7 @@ class TestCreateServer:
 class TestTopicsTool:
     def test_success(self, mocker):
         page = make_wiki_page()
-        mocker.patch("codewiki_mcp.tools.topics.fetch_wiki_page", return_value=page)
+        mocker.patch(_HELPERS_FETCH, return_value=page)
 
         from codewiki_mcp.tools.topics import register
         from mcp.server.fastmcp import FastMCP
@@ -67,7 +71,7 @@ class TestTopicsTool:
 
     def test_returns_json_envelope(self, mocker):
         page = make_wiki_page()
-        mocker.patch("codewiki_mcp.tools.topics.fetch_wiki_page", return_value=page)
+        mocker.patch(_HELPERS_FETCH, return_value=page)
 
         from codewiki_mcp.tools.topics import register
         from mcp.server.fastmcp import FastMCP
@@ -85,7 +89,7 @@ class TestTopicsTool:
 
     def test_no_content(self, mocker):
         page = make_wiki_page(raw_text="", sections=[])
-        mocker.patch("codewiki_mcp.tools.topics.fetch_wiki_page", return_value=page)
+        mocker.patch(_HELPERS_FETCH, return_value=page)
 
         from codewiki_mcp.tools.topics import register
         from mcp.server.fastmcp import FastMCP
@@ -114,7 +118,7 @@ class TestTopicsTool:
 
     def test_http_error(self, mocker):
         mocker.patch(
-            "codewiki_mcp.tools.topics.fetch_wiki_page",
+            _HELPERS_FETCH,
             side_effect=TimeoutError("Page render timed out"),
         )
 
@@ -130,6 +134,24 @@ class TestTopicsTool:
         assert parsed["status"] == "error"
         assert parsed["code"] == "TIMEOUT"
 
+    def test_returns_previews_not_full(self, mocker):
+        """Topics tool should return previews, not the full page content."""
+        page = make_wiki_page()
+        mocker.patch(_HELPERS_FETCH, return_value=page)
+
+        from codewiki_mcp.tools.topics import register
+        from mcp.server.fastmcp import FastMCP
+
+        mcp = FastMCP("test")
+        register(mcp)
+
+        fn = mcp._tool_manager._tools["list_code_wiki_topics"].fn
+        result = fn(repo_url="microsoft/vscode")
+        parsed = json.loads(result)
+        # The data should contain section titles
+        assert "Architecture" in parsed["data"]
+        assert "Extensions" in parsed["data"]
+
 
 # ---------------------------------------------------------------------------
 # read_wiki_structure tool
@@ -137,7 +159,7 @@ class TestTopicsTool:
 class TestStructureTool:
     def test_returns_json_sections(self, mocker):
         page = make_wiki_page()
-        mocker.patch("codewiki_mcp.tools.structure.fetch_wiki_page", return_value=page)
+        mocker.patch(_HELPERS_FETCH, return_value=page)
 
         from codewiki_mcp.tools.structure import register
         from mcp.server.fastmcp import FastMCP
@@ -157,7 +179,7 @@ class TestStructureTool:
 
     def test_section_titles(self, mocker):
         page = make_wiki_page()
-        mocker.patch("codewiki_mcp.tools.structure.fetch_wiki_page", return_value=page)
+        mocker.patch(_HELPERS_FETCH, return_value=page)
 
         from codewiki_mcp.tools.structure import register
         from mcp.server.fastmcp import FastMCP
@@ -180,7 +202,7 @@ class TestStructureTool:
 class TestContentsTool:
     def test_full_content(self, mocker):
         page = make_wiki_page()
-        mocker.patch("codewiki_mcp.tools.contents.fetch_wiki_page", return_value=page)
+        mocker.patch(_HELPERS_FETCH, return_value=page)
 
         from codewiki_mcp.tools.contents import register
         from mcp.server.fastmcp import FastMCP
@@ -197,7 +219,7 @@ class TestContentsTool:
 
     def test_section_filter(self, mocker):
         page = make_wiki_page()
-        mocker.patch("codewiki_mcp.tools.contents.fetch_wiki_page", return_value=page)
+        mocker.patch(_HELPERS_FETCH, return_value=page)
 
         from codewiki_mcp.tools.contents import register
         from mcp.server.fastmcp import FastMCP
@@ -214,7 +236,7 @@ class TestContentsTool:
 
     def test_section_not_found(self, mocker):
         page = make_wiki_page()
-        mocker.patch("codewiki_mcp.tools.contents.fetch_wiki_page", return_value=page)
+        mocker.patch(_HELPERS_FETCH, return_value=page)
 
         from codewiki_mcp.tools.contents import register
         from mcp.server.fastmcp import FastMCP
@@ -228,6 +250,27 @@ class TestContentsTool:
         assert parsed["status"] == "error"
         assert parsed["code"] == "NO_CONTENT"
         assert "not found" in parsed["message"].lower()
+
+    def test_pagination(self, mocker):
+        """Pagination returns a subset of sections with has_more hint."""
+        page = make_wiki_page()
+        mocker.patch(_HELPERS_FETCH, return_value=page)
+
+        from codewiki_mcp.tools.contents import register
+        from mcp.server.fastmcp import FastMCP
+
+        mcp = FastMCP("test")
+        register(mcp)
+
+        fn = mcp._tool_manager._tools["read_wiki_contents"].fn
+        # Ask for only 2 sections starting at offset 0
+        result = fn(repo_url="microsoft/vscode", offset=0, limit=2)
+        parsed = json.loads(result)
+        assert parsed["status"] == "ok"
+        # Should have Architecture and Extensions but not Testing
+        assert "Architecture" in parsed["data"]
+        assert "Extensions" in parsed["data"]
+        assert "offset=2" in parsed["data"]  # next_offset hint
 
 
 # ---------------------------------------------------------------------------
@@ -273,6 +316,11 @@ class TestSearchTool:
         mocker.patch(
             "codewiki_mcp.tools.search._run_search",
             return_value=mock_response,
+        )
+        # Ensure search cache doesn't interfere
+        mocker.patch(
+            "codewiki_mcp.tools.search.get_cached_search",
+            return_value=None,
         )
 
         from codewiki_mcp.tools.search import register

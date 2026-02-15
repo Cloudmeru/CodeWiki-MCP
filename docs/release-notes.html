@@ -27,7 +27,7 @@
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6c63ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8M8 11h6"/></svg>
       CodeWiki MCP
     </div>
-    <span class="version">v1.0.1</span>
+    <span class="version">v1.0.2</span>
   </div>
   <nav>
     <div class="nav-section">Overview</div>
@@ -90,6 +90,36 @@
 
   <div class="content">
     <h2>Latest Releases</h2>
+
+    <section class="release">
+      <h3>v1.0.2 — 2026-02-16</h3>
+      <ul>
+        <li><strong>Token efficiency optimizations:</strong></li>
+        <ul>
+          <li><code>list_code_wiki_topics</code> now returns titles + 200-char previews instead of dumping the full page (~80% fewer tokens).</li>
+          <li><code>read_wiki_contents</code> supports pagination via <code>offset</code> and <code>limit</code> parameters — read only what you need.</li>
+          <li>Search responses are cached for 2 minutes — repeated identical queries return instantly.</li>
+          <li>Parsed <code>WikiPage</code> objects are cached in memory — avoids re-parsing the same HTML on repeated tool calls.</li>
+          <li>Word-boundary-aware truncation prevents mid-word content cuts.</li>
+        </ul>
+        <li><strong>Code quality improvements:</strong></li>
+        <ul>
+          <li>New shared <code>tools/_helpers.py</code> module eliminates duplicated error handling and URL construction across all tools.</li>
+          <li>Added <code>ContentsInput</code> Pydantic model with pagination parameters.</li>
+          <li>Updated tool descriptions to guide agents toward the most efficient workflow.</li>
+        </ul>
+        <li><strong>Documentation:</strong></li>
+        <ul>
+          <li>Updated <a href="agents.html">Agentic AI Guide</a> with token-efficient workflow recommendations.</li>
+          <li>Added model selection &amp; GitHub Copilot credit optimization guide.</li>
+          <li>Updated <a href="tools.html">Tools Reference</a> with new pagination parameters and caching behavior.</li>
+        </ul>
+        <li><strong>Testing:</strong></li>
+        <ul>
+          <li>Added tests for parsed cache, search cache, and pagination. Total: 101 tests passing.</li>
+        </ul>
+      </ul>
+    </section>
 
     <section class="release">
       <h3>v1.0.1 — 2026-02-15</h3>

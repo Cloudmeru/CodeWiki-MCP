@@ -53,6 +53,9 @@ RESPONSE_MAX_CHARS: int = _env_int("CODEWIKI_RESPONSE_MAX_CHARS", 30000)
 # ---------------------------------------------------------------------------
 CACHE_TTL_SECONDS: int = _env_int("CODEWIKI_CACHE_TTL", 300)  # 5 minutes
 CACHE_MAX_SIZE: int = _env_int("CODEWIKI_CACHE_MAX_SIZE", 50)
+SEARCH_CACHE_TTL_SECONDS: int = _env_int("CODEWIKI_SEARCH_CACHE_TTL", 120)  # 2 minutes
+SEARCH_CACHE_MAX_SIZE: int = _env_int("CODEWIKI_SEARCH_CACHE_MAX_SIZE", 30)
+PARSED_CACHE_MAX_SIZE: int = _env_int("CODEWIKI_PARSED_CACHE_MAX_SIZE", 30)
 
 # ---------------------------------------------------------------------------
 # Playwright chat timing
@@ -70,6 +73,16 @@ SUBMIT_DELAY: float = 1.0
 # ---------------------------------------------------------------------------
 NEW_CONTENT_THRESHOLD_CHARS: int = 50
 FALLBACK_MIN_TEXT_LENGTH: int = 20
+
+# ---------------------------------------------------------------------------
+# Topic preview
+# ---------------------------------------------------------------------------
+TOPIC_PREVIEW_CHARS: int = _env_int("CODEWIKI_TOPIC_PREVIEW_CHARS", 200)
+
+# ---------------------------------------------------------------------------
+# Session pool
+# ---------------------------------------------------------------------------
+SESSION_POOL_SIZE: int = _env_int("CODEWIKI_SESSION_POOL_SIZE", 10)
 
 # ---------------------------------------------------------------------------
 # Debug

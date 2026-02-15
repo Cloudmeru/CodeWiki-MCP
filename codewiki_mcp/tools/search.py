@@ -15,6 +15,8 @@ from mcp.server.fastmcp import FastMCP
 
 from .. import config
 from ..browser import _get_browser, run_in_browser_loop
+from ..cache import get_cached_search, set_cached_search
+from ..session_pool import get_or_create_session, release_session
 from ..types import (
     ErrorCode,
     ResponseMeta,
@@ -22,6 +24,7 @@ from ..types import (
     ToolResponse,
     validate_search_input,
 )
+from ._helpers import build_codewiki_url
 
 logger = logging.getLogger("CodeWiki")
 
@@ -179,38 +182,28 @@ def _clean_response(raw: str) -> str:
 
 
 async def _search_impl(inp: SearchInput) -> ToolResponse:
-    """One Playwright-based attempt at querying CodeWiki chat."""
-    clean_repo = inp.repo_url.replace("https://", "").replace("http://", "")
-    target_url = f"{config.CODEWIKI_BASE_URL}/{clean_repo}"
+    """One Playwright-based attempt at querying CodeWiki chat.
+
+    Uses the session pool to reuse warm browser contexts when possible.
+    Falls back to a fresh context if the pooled session is broken.
+    """
+    target_url = build_codewiki_url(inp.repo_url)
     logger.info("Target URL: %s", target_url)
 
-    browser = await _get_browser()
-    context = await browser.new_context(
-        user_agent=config.USER_AGENT,
-        viewport={"width": 1920, "height": 1080},
-    )
-    page = await context.new_page()
+    # Try to get a warm session from the pool
+    broken = False
+    try:
+        entry = get_or_create_session(target_url)
+        page = entry.page
+    except Exception as exc:  # pylint: disable=broad-except
+        logger.warning("Session pool failed, falling back to fresh context: %s", exc)
+        return await _search_fresh_context(inp, target_url)
 
     try:
-        await page.goto(
-            target_url,
-            wait_until="domcontentloaded",
-            timeout=config.PAGE_LOAD_TIMEOUT_SECONDS * 1000,
-        )
-
-        # Wait for the SPA to render the wiki page
-        try:
-            await page.wait_for_selector(
-                "body-content-section, documentation-markdown, h1",
-                timeout=config.ELEMENT_WAIT_TIMEOUT_SECONDS * 1000,
-            )
-        except Exception:  # pylint: disable=broad-except
-            pass
-        await asyncio.sleep(config.JS_LOAD_DELAY_SECONDS)
-
         # Ensure the chat panel is open
-        chat_visible = await _ensure_chat_open(page)
+        chat_visible = await _ensure_chat_open_async(page)
         if not chat_visible:
+            broken = True
             return ToolResponse.error(
                 ErrorCode.INPUT_NOT_FOUND,
                 f"Chat panel not found or could not be opened on {target_url}.",
@@ -221,6 +214,7 @@ async def _search_impl(inp: SearchInput) -> ToolResponse:
         # Find the chat input
         chat_input = await _find_chat_input(page)
         if not chat_input:
+            broken = True
             return ToolResponse.error(
                 ErrorCode.INPUT_NOT_FOUND,
                 f"Could not locate chat input on {target_url}. "
@@ -236,7 +230,7 @@ async def _search_impl(inp: SearchInput) -> ToolResponse:
         await chat_input.fill(inp.query)
         await asyncio.sleep(config.INPUT_TYPE_DELAY)
 
-        # Wait for the send button to become enabled (it starts disabled)
+        # Wait for the send button to become enabled
         await _wait_for_submit_enabled(page, timeout_ms=3000)
 
         # Submit via Enter key first, then click button as fallback
@@ -250,6 +244,98 @@ async def _search_impl(inp: SearchInput) -> ToolResponse:
         # Wait for response
         response_text = await _wait_for_response(page)
 
+        if not response_text:
+            return ToolResponse.error(
+                ErrorCode.NO_CONTENT,
+                f"No response received for query: '{inp.query}'.",
+                repo_url=inp.repo_url,
+                query=inp.query,
+            )
+
+        cleaned = _clean_response(response_text)
+        truncated = False
+        if len(cleaned) > config.RESPONSE_MAX_CHARS:
+            cleaned = cleaned[: config.RESPONSE_MAX_CHARS] + "\n\n... [truncated]"
+            truncated = True
+
+        return ToolResponse.success(
+            cleaned,
+            repo_url=inp.repo_url,
+            query=inp.query,
+            meta=ResponseMeta(char_count=len(cleaned), truncated=truncated),
+        )
+
+    except Exception as exc:  # pylint: disable=broad-except
+        broken = True
+        return ToolResponse.error(
+            ErrorCode.DRIVER_ERROR,
+            f"Playwright error: {exc}",
+            repo_url=inp.repo_url,
+            query=inp.query,
+        )
+    finally:
+        release_session(target_url, broken=broken)
+
+
+async def _ensure_chat_open_async(page) -> bool:
+    """Wrapper that uses the module-level _ensure_chat_open."""
+    return await _ensure_chat_open(page)
+
+
+async def _search_fresh_context(inp: SearchInput, target_url: str) -> ToolResponse:
+    """Fallback: create a one-off browser context (pre-v1.0.2 behaviour)."""
+    browser = await _get_browser()
+    context = await browser.new_context(
+        user_agent=config.USER_AGENT,
+        viewport={"width": 1920, "height": 1080},
+    )
+    page = await context.new_page()
+
+    try:
+        await page.goto(
+            target_url,
+            wait_until="domcontentloaded",
+            timeout=config.PAGE_LOAD_TIMEOUT_SECONDS * 1000,
+        )
+        try:
+            await page.wait_for_selector(
+                "body-content-section, documentation-markdown, h1",
+                timeout=config.ELEMENT_WAIT_TIMEOUT_SECONDS * 1000,
+            )
+        except Exception:  # pylint: disable=broad-except
+            pass
+        await asyncio.sleep(config.JS_LOAD_DELAY_SECONDS)
+
+        chat_visible = await _ensure_chat_open(page)
+        if not chat_visible:
+            return ToolResponse.error(
+                ErrorCode.INPUT_NOT_FOUND,
+                f"Chat panel not found on {target_url}.",
+                repo_url=inp.repo_url,
+                query=inp.query,
+            )
+
+        chat_input = await _find_chat_input(page)
+        if not chat_input:
+            return ToolResponse.error(
+                ErrorCode.INPUT_NOT_FOUND,
+                f"Could not locate chat input on {target_url}.",
+                repo_url=inp.repo_url,
+                query=inp.query,
+            )
+
+        await chat_input.click()
+        await chat_input.fill("")
+        await asyncio.sleep(config.INPUT_CLEAR_DELAY)
+        await chat_input.fill(inp.query)
+        await asyncio.sleep(config.INPUT_TYPE_DELAY)
+        await _wait_for_submit_enabled(page, timeout_ms=3000)
+        await chat_input.press("Enter")
+        await asyncio.sleep(0.5)
+        await _click_submit(page)
+        await asyncio.sleep(config.RESPONSE_INITIAL_DELAY_SECONDS)
+
+        response_text = await _wait_for_response(page)
         if not response_text:
             return ToolResponse.error(
                 ErrorCode.NO_CONTENT,
@@ -320,6 +406,8 @@ def register(mcp: FastMCP) -> None:
         This uses the interactive chat feature powered by Gemini.
         For reading wiki content directly, use ``read_wiki_contents`` instead.
 
+        Results are cached for 2 minutes — repeated identical queries are instant.
+
         Args:
             repo_url: Full repository URL (e.g. https://github.com/microsoft/vscode-copilot-chat)
                       or shorthand owner/repo (e.g. microsoft/vscode-copilot-chat).
@@ -332,6 +420,20 @@ def register(mcp: FastMCP) -> None:
         if isinstance(validated, ToolResponse):
             return validated.to_text()
 
+        # Check search cache first
+        cached = get_cached_search(validated.repo_url, validated.query)
+        if cached is not None:
+            elapsed = int((time.monotonic() - start) * 1000)
+            return ToolResponse.success(
+                cached,
+                repo_url=validated.repo_url,
+                query=validated.query,
+                meta=ResponseMeta(
+                    elapsed_ms=elapsed,
+                    char_count=len(cached),
+                ),
+            ).to_text()
+
         last_error: ToolResponse | None = None
         for attempt in range(1, config.MAX_RETRIES + 1):
             logger.info("Attempt %d/%d", attempt, config.MAX_RETRIES)
@@ -342,6 +444,9 @@ def register(mcp: FastMCP) -> None:
                 result.meta.attempt = attempt
                 result.meta.max_attempts = config.MAX_RETRIES
                 result.meta.elapsed_ms = int((time.monotonic() - start) * 1000)
+                # Cache the successful result
+                if result.data:
+                    set_cached_search(validated.repo_url, validated.query, result.data)
                 return result.to_text()
 
             last_error = result

@@ -91,6 +91,26 @@ class SectionInput(RepoInput):
         return v
 
 
+class ContentsInput(RepoInput):
+    """Input for the read_wiki_contents tool (with optional pagination)."""
+
+    section_title: str = Field(
+        default="",
+        description="Title (or partial title) of a specific section to retrieve.",
+    )
+    offset: int = Field(
+        default=0,
+        ge=0,
+        description="Section index to start from (0-based) when browsing the full page.",
+    )
+    limit: int = Field(
+        default=5,
+        ge=1,
+        le=50,
+        description="Maximum number of sections to return per call.",
+    )
+
+
 # ---------------------------------------------------------------------------
 # Structured response types (like ErrorEnvelope in DeepWiki MCP)
 # ---------------------------------------------------------------------------
@@ -207,6 +227,28 @@ def validate_section_input(
     """Validate and normalize section inputs. Returns SectionInput or ToolResponse error."""
     try:
         return SectionInput(repo_url=repo_url, section_title=section_title)
+    except Exception as exc:  # pylint: disable=broad-except
+        return ToolResponse.error(
+            ErrorCode.VALIDATION,
+            str(exc),
+            repo_url=repo_url,
+        )
+
+
+def validate_contents_input(
+    repo_url: str,
+    section_title: str = "",
+    offset: int = 0,
+    limit: int = 5,
+) -> ContentsInput | ToolResponse:
+    """Validate and normalize contents inputs. Returns ContentsInput or ToolResponse error."""
+    try:
+        return ContentsInput(
+            repo_url=repo_url,
+            section_title=section_title,
+            offset=offset,
+            limit=limit,
+        )
     except Exception as exc:  # pylint: disable=broad-except
         return ToolResponse.error(
             ErrorCode.VALIDATION,

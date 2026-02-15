@@ -17,7 +17,12 @@ from bs4 import BeautifulSoup, NavigableString, Tag
 
 from . import config
 from .browser import fetch_rendered_html
-from .cache import get_cached_page, set_cached_page
+from .cache import (
+    get_cached_page,
+    get_cached_wiki_page,
+    set_cached_page,
+    set_cached_wiki_page,
+)
 
 logger = logging.getLogger("CodeWiki")
 
@@ -432,6 +437,11 @@ def fetch_wiki_page(repo_url: str) -> WikiPage:
     Raises:
         Exception: If the page cannot be fetched or rendered.
     """
+    # Check parsed cache first (avoids re-parsing same HTML)
+    cached_page = get_cached_wiki_page(repo_url)
+    if cached_page is not None:
+        return cached_page
+
     clean_repo = repo_url.replace("https://", "").replace("http://", "")
     target_url = f"{config.CODEWIKI_BASE_URL}/{clean_repo}"
 
@@ -474,6 +484,10 @@ def fetch_wiki_page(repo_url: str) -> WikiPage:
         len(diagrams),
         len(raw_text),
     )
+
+    # Store in parsed cache for future calls
+    set_cached_wiki_page(repo_url, page)
+
     return page
 
 
@@ -538,3 +552,39 @@ def page_to_markdown(page: WikiPage, *, max_chars: int = 0) -> str:
         text = text[:max_chars] + "\n\n... [truncated]"
 
     return text
+
+
+def page_to_topic_list(page: WikiPage, *, preview_chars: int = 200) -> str:
+    """Convert a WikiPage to a compact topic listing with short previews.
+
+    This is far more token-efficient than ``page_to_markdown()`` because it
+    returns only section titles and the first *preview_chars* characters of
+    each section's content — typically 5-10 % of the full page.
+
+    Format::
+
+        # Repo Title
+
+        ## Section Title
+        First 200 characters of content...
+
+    Args:
+        page: Parsed ``WikiPage``.
+        preview_chars: Max characters of content preview per section.
+    """
+    parts = [f"# {page.title}\n"]
+
+    for section in page.sections:
+        prefix = "#" * min(section.level + 1, 6)
+        parts.append(f"\n{prefix} {section.title}")
+        if section.content:
+            preview = section.content[:preview_chars].rstrip()
+            if len(section.content) > preview_chars:
+                # Try to break at last space for readability
+                last_sp = preview.rfind(" ")
+                if last_sp > preview_chars * 0.6:
+                    preview = preview[:last_sp]
+                preview += "…"
+            parts.append(preview)
+
+    return "\n".join(parts).strip()
