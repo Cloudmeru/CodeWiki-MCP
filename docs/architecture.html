@@ -86,8 +86,11 @@
       <div class="mermaid">
         graph LR
           A[Editor Client] -->|requests| B[Tools Layer]
-          B -->|renders via| C[Browser Singleton]
+          B -->|rate limit + dedup| H[Safety Layer]
+          H -->|renders via| C[Browser Singleton]
           C --> D[Playwright Chromium]
+          C --> I[Session Pool]
+          I -->|stealth context| D
           D --> E[Parser]
           E --> B
           C --> F[TTL Cache]
@@ -146,15 +149,44 @@
     </ul>
     <p>Diagram summaries (entities + relationships) are placed at the top of tool output so they remain visible even when responses are truncated.</p>
 
+    <h2>Session Pool <small>(v1.0.2+)</small></h2>
+    <p><code>session_pool.py</code> maintains an LRU pool of <strong>warm browser contexts</strong> for the <code>search_code_wiki</code> tool. Instead of creating a fresh Playwright context for every chat query, the pool keeps recently-used contexts alive with their pages already loaded.</p>
+    <ul>
+      <li><code>_get_or_create(url)</code> — returns a warm session or creates a new one; navigates to the page and opens the chat panel</li>
+      <li><code>_release(url, broken)</code> — returns a session to the pool (or destroys it if marked broken)</li>
+      <li>Pool size is configurable via <code>CODEWIKI_SESSION_POOL_SIZE</code> (default: 10)</li>
+    </ul>
+    <p><strong>Important:</strong> The async <code>_get_or_create</code> / <code>_release</code> functions must be called directly from coroutines running on the browser event loop. The sync wrappers (<code>get_or_create_session</code> / <code>release_session</code>) are provided for non-loop callers only — calling them <em>from</em> the loop causes a deadlock.</p>
+
+    <h2>Browser Stealth Layer <small>(v1.0.4)</small></h2>
+    <p><code>stealth.py</code> injects anti-bot-detection patches into every Playwright context:</p>
+    <ul>
+      <li><strong>JS property overrides</strong> — patches <code>navigator.webdriver</code>, <code>chrome.runtime</code>, plugins array, languages, WebGL vendor/renderer, permissions query, and <code>outerWidth</code>/<code>outerHeight</code></li>
+      <li><strong>Human-like input</strong> — <code>human_type()</code> types character-by-character with 35–120 ms jitter and thinking pauses; <code>human_click()</code> moves the mouse to the element before clicking</li>
+      <li><strong>Stealth context options</strong> — viewport jitter, locale, timezone, Sec-CH-UA client hints, device scale factor</li>
+      <li><strong>Launch args</strong> — <code>--disable-blink-features=AutomationControlled</code>, <code>--disable-infobars</code></li>
+    </ul>
+
+    <h2>Anti-Loop Safety <small>(v1.0.3)</small></h2>
+    <p>When an AI agent calls tools in a loop, these mechanisms prevent runaway behaviour:</p>
+    <ul>
+      <li><strong>In-flight deduplication</strong> (<code>dedup.py</code>) — concurrent identical tool calls are collapsed into a single execution</li>
+      <li><strong>Rate limiting</strong> (<code>rate_limit.py</code>) — sliding-window limiter (default: 10 calls per 60 s per repo) returns a clear <code>RATE_LIMITED</code> error</li>
+      <li><strong>Content hash + idempotency key</strong> — every response carries a <code>content_hash</code> and <code>idempotency_key</code> so agents can detect duplicate results</li>
+    </ul>
+
     <h2>Key Components</h2>
     <table>
       <thead><tr><th>Component</th><th>Role</th></tr></thead>
       <tbody>
         <tr><td><strong>Playwright + shared browser</strong></td><td>All page rendering via headless Chromium</td></tr>
-        <tr><td><strong>TTLCache</strong></td><td>Rendered pages cached for 5 minutes (configurable)</td></tr>
+        <tr><td><strong>Session pool</strong></td><td>LRU pool of warm browser contexts for search</td></tr>
+        <tr><td><strong>Stealth layer</strong></td><td>Anti-bot-detection patches &amp; human-like input helpers</td></tr>
+        <tr><td><strong>TTLCache (multi-layer)</strong></td><td>Rendered pages (5 min), search results (2 min), parsed objects, topic lists (30 min)</td></tr>
+        <tr><td><strong>Rate limiter + dedup</strong></td><td>Per-repo sliding window &amp; in-flight call deduplication</td></tr>
         <tr><td><strong>BeautifulSoup + lxml</strong></td><td>Fast HTML parsing with section extraction, TOC, and diagram detection</td></tr>
         <tr><td><strong>Pydantic schemas</strong></td><td>Validate all inputs before processing</td></tr>
-        <tr><td><strong>Structured responses</strong></td><td>JSON envelope with metadata in every response</td></tr>
+        <tr><td><strong>Structured responses</strong></td><td>JSON envelope with metadata, content hash, idempotency key</td></tr>
         <tr><td><strong>Modular tools</strong></td><td>Each tool in its own module, registered via <code>register_all_tools()</code></td></tr>
         <tr><td><strong>Signal handlers</strong></td><td>SIGINT/SIGTERM for clean shutdown with browser cleanup</td></tr>
       </tbody>
@@ -164,31 +196,38 @@
     <pre><code>codewiki_mcp/
 ├── __init__.py        # Package init + version
 ├── __main__.py        # python -m entry point
-├── browser.py         # Shared Playwright browser singleton
-├── cache.py           # TTLCache for rendered pages
+├── browser.py         # Shared Playwright browser singleton + persistent event loop
+├── cache.py           # TTLCache for rendered pages, search results, parsed objects, topics
 ├── config.py          # Env-var-driven configuration + SPA selectors
-├── parser.py          # Playwright renderer + BeautifulSoup parser
+├── dedup.py           # In-flight call deduplication
+├── parser.py          # Playwright renderer + BeautifulSoup section parser
+├── rate_limit.py      # Per-repo sliding-window rate limiter
 ├── server.py          # MCP server setup + CLI
+├── session_pool.py    # LRU pool of warm browser contexts for search
+├── stealth.py         # Anti-bot-detection JS patches + human-like input helpers
 ├── types.py           # Pydantic schemas + response models
 └── tools/
     ├── __init__.py    # Tool registration
-    ├── contents.py    # read_wiki_contents
-    ├── search.py      # search_code_wiki (Playwright chat)
+    ├── _helpers.py    # Shared URL construction + error handling
+    ├── contents.py    # read_wiki_contents (paginated)
+    ├── search.py      # search_code_wiki (Playwright chat interaction)
     ├── structure.py   # read_wiki_structure
-    └── topics.py      # list_code_wiki_topics
+    └── topics.py      # list_code_wiki_topics (with previews)
 tests/
 ├── conftest.py        # Shared fixtures + sample data
 ├── test_cache.py      # Cache layer tests
 ├── test_config.py     # Configuration tests
 ├── test_parser.py     # Parser + HTML extraction tests
+├── test_stealth.py    # Stealth layer tests
 ├── test_tools.py      # Server, tools &amp; integration tests
-└── test_types.py      # Schema &amp; response tests
+├── test_types.py      # Schema, response, dedup, rate-limit &amp; idempotency tests
+└── diagnose_search.py # Standalone headless chat diagnostic script
 Dockerfile             # Docker deployment</code></pre>
 
     <h2>Running Tests</h2>
     <pre><code>pip install -e ".[test]"
 pytest tests/ -v</code></pre>
-    <p>93 tests covering cache, config, parser, tools, and type validation.</p>
+    <p>151 tests covering cache, config, parser, stealth, tools, types, dedup, rate limiting, and idempotency.</p>
   </div>
 </main>
 

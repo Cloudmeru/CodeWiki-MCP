@@ -109,8 +109,30 @@
     <table>
       <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
       <tbody>
-        <tr><td><code>CODEWIKI_CACHE_TTL</code></td><td><code>300</code></td><td>Page cache TTL (seconds)</td></tr>
-        <tr><td><code>CODEWIKI_CACHE_MAX_SIZE</code></td><td><code>50</code></td><td>Max pages in cache</td></tr>
+        <tr><td><code>CODEWIKI_CACHE_TTL</code></td><td><code>300</code></td><td>Rendered page cache TTL (seconds)</td></tr>
+        <tr><td><code>CODEWIKI_CACHE_MAX_SIZE</code></td><td><code>50</code></td><td>Max rendered pages in cache</td></tr>
+        <tr><td><code>CODEWIKI_SEARCH_CACHE_TTL</code></td><td><code>120</code></td><td>Search result cache TTL (seconds)</td></tr>
+        <tr><td><code>CODEWIKI_SEARCH_CACHE_MAX_SIZE</code></td><td><code>30</code></td><td>Max search results in cache</td></tr>
+        <tr><td><code>CODEWIKI_PARSED_CACHE_MAX_SIZE</code></td><td><code>30</code></td><td>Max parsed WikiPage objects in cache</td></tr>
+        <tr><td><code>CODEWIKI_TOPIC_CACHE_TTL</code></td><td><code>1800</code></td><td>Topic list cache TTL (seconds) — longer since structure rarely changes</td></tr>
+        <tr><td><code>CODEWIKI_TOPIC_CACHE_MAX_SIZE</code></td><td><code>30</code></td><td>Max topic lists in cache</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Rate Limiting</h3>
+    <table>
+      <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>CODEWIKI_RATE_LIMIT_WINDOW</code></td><td><code>60</code></td><td>Sliding window duration (seconds)</td></tr>
+        <tr><td><code>CODEWIKI_RATE_LIMIT_MAX_CALLS</code></td><td><code>10</code></td><td>Max calls per repo per window</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Session Pool</h3>
+    <table>
+      <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>CODEWIKI_SESSION_POOL_SIZE</code></td><td><code>10</code></td><td>Max warm browser contexts in the session pool</td></tr>
       </tbody>
     </table>
 
@@ -129,6 +151,7 @@
       <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
       <tbody>
         <tr><td><code>CODEWIKI_JS_LOAD_DELAY</code></td><td><code>3</code></td><td>Delay for JS/SPA loading (seconds)</td></tr>
+        <tr><td><code>CODEWIKI_TOPIC_PREVIEW_CHARS</code></td><td><code>200</code></td><td>Max characters per topic preview in <code>list_code_wiki_topics</code></td></tr>
         <tr><td><code>CODEWIKI_VERBOSE</code></td><td><code>false</code></td><td>Enable debug logging</td></tr>
         <tr><td><code>CODEWIKI_BASE_URL</code></td><td><code>https://codewiki.google</code></td><td>CodeWiki base URL</td></tr>
       </tbody>
