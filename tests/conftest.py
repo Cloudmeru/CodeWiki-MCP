@@ -6,7 +6,9 @@ from typing import Any
 
 import pytest
 
+from codewiki_mcp.cache import clear_cache
 from codewiki_mcp.parser import WikiPage, WikiSection
+from codewiki_mcp.rate_limit import reset_rate_limits
 
 # ---------------------------------------------------------------------------
 # Sample data
@@ -71,6 +73,16 @@ def make_wiki_page(**overrides: Any) -> WikiPage:
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+@pytest.fixture(autouse=True)
+def _clean_state():
+    """Reset caches and rate limits before each test."""
+    clear_cache()
+    reset_rate_limits()
+    yield
+    clear_cache()
+    reset_rate_limits()
+
+
 @pytest.fixture
 def sample_wiki_page() -> WikiPage:
     """A pre-built WikiPage for testing tools."""

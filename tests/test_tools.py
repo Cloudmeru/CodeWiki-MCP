@@ -11,6 +11,8 @@ from tests.conftest import make_wiki_page
 # All tools that go through _helpers.fetch_page_or_error need their
 # fetch_wiki_page mock applied at the _helpers import location.
 _HELPERS_FETCH = "codewiki_mcp.tools._helpers.fetch_wiki_page"
+# Rate limiter must always allow in tests (unless testing rate limiting itself)
+_HELPERS_RATE_LIMIT = "codewiki_mcp.tools._helpers.check_rate_limit"
 
 
 # ---------------------------------------------------------------------------
@@ -336,3 +338,135 @@ class TestSearchTool:
         parsed = json.loads(result)
         assert parsed["status"] == "ok"
         assert "Electron" in parsed["data"]
+
+
+# ---------------------------------------------------------------------------
+# Rate limiting integration
+# ---------------------------------------------------------------------------
+class TestRateLimitIntegration:
+    """Test that tools respect rate limits."""
+
+    def test_topics_rate_limited(self, mocker):
+        """Topics tool returns RATE_LIMITED when limit exceeded."""
+        page = make_wiki_page()
+        mocker.patch(_HELPERS_FETCH, return_value=page)
+        mocker.patch(_HELPERS_RATE_LIMIT, return_value=False)
+
+        from codewiki_mcp.tools.topics import register
+        from mcp.server.fastmcp import FastMCP
+
+        mcp = FastMCP("test")
+        register(mcp)
+
+        fn = mcp._tool_manager._tools["list_code_wiki_topics"].fn
+        result = fn(repo_url="microsoft/vscode")
+        parsed = json.loads(result)
+        assert parsed["status"] == "error"
+        assert parsed["code"] == "RATE_LIMITED"
+
+    def test_structure_rate_limited(self, mocker):
+        """Structure tool returns RATE_LIMITED when limit exceeded."""
+        mocker.patch(_HELPERS_RATE_LIMIT, return_value=False)
+
+        from codewiki_mcp.tools.structure import register
+        from mcp.server.fastmcp import FastMCP
+
+        mcp = FastMCP("test")
+        register(mcp)
+
+        fn = mcp._tool_manager._tools["read_wiki_structure"].fn
+        result = fn(repo_url="microsoft/vscode")
+        parsed = json.loads(result)
+        assert parsed["status"] == "error"
+        assert parsed["code"] == "RATE_LIMITED"
+
+    def test_contents_rate_limited(self, mocker):
+        """Contents tool returns RATE_LIMITED when limit exceeded."""
+        mocker.patch(_HELPERS_RATE_LIMIT, return_value=False)
+
+        from codewiki_mcp.tools.contents import register
+        from mcp.server.fastmcp import FastMCP
+
+        mcp = FastMCP("test")
+        register(mcp)
+
+        fn = mcp._tool_manager._tools["read_wiki_contents"].fn
+        result = fn(repo_url="microsoft/vscode")
+        parsed = json.loads(result)
+        assert parsed["status"] == "error"
+        assert parsed["code"] == "RATE_LIMITED"
+
+    def test_search_rate_limited(self, mocker):
+        """Search tool returns RATE_LIMITED when limit exceeded."""
+        mocker.patch("codewiki_mcp.tools.search.check_rate_limit", return_value=False)
+
+        from codewiki_mcp.tools.search import register
+        from mcp.server.fastmcp import FastMCP
+
+        mcp = FastMCP("test")
+        register(mcp)
+
+        fn = mcp._tool_manager._tools["search_code_wiki"].fn
+        result = fn(repo_url="microsoft/vscode", query="How does it work?")
+        parsed = json.loads(result)
+        assert parsed["status"] == "error"
+        assert parsed["code"] == "RATE_LIMITED"
+
+
+# ---------------------------------------------------------------------------
+# Content hash / idempotency key integration
+# ---------------------------------------------------------------------------
+class TestResponseMetaIntegration:
+    """Test that responses include content_hash and idempotency_key."""
+
+    def test_topics_has_content_hash(self, mocker):
+        page = make_wiki_page()
+        mocker.patch(_HELPERS_FETCH, return_value=page)
+
+        from codewiki_mcp.tools.topics import register
+        from mcp.server.fastmcp import FastMCP
+
+        mcp = FastMCP("test")
+        register(mcp)
+
+        fn = mcp._tool_manager._tools["list_code_wiki_topics"].fn
+        result = fn(repo_url="microsoft/vscode")
+        parsed = json.loads(result)
+        assert parsed["status"] == "ok"
+        assert "content_hash" in parsed["meta"]
+        assert parsed["meta"]["content_hash"] is not None
+        assert "idempotency_key" in parsed
+
+    def test_structure_has_content_hash(self, mocker):
+        page = make_wiki_page()
+        mocker.patch(_HELPERS_FETCH, return_value=page)
+
+        from codewiki_mcp.tools.structure import register
+        from mcp.server.fastmcp import FastMCP
+
+        mcp = FastMCP("test")
+        register(mcp)
+
+        fn = mcp._tool_manager._tools["read_wiki_structure"].fn
+        result = fn(repo_url="microsoft/vscode")
+        parsed = json.loads(result)
+        assert parsed["status"] == "ok"
+        assert "content_hash" in parsed["meta"]
+        assert "idempotency_key" in parsed
+
+    def test_same_data_same_hash(self, mocker):
+        """Repeated calls produce the same content_hash."""
+        page = make_wiki_page()
+        mocker.patch(_HELPERS_FETCH, return_value=page)
+
+        from codewiki_mcp.tools.structure import register
+        from mcp.server.fastmcp import FastMCP
+
+        mcp = FastMCP("test")
+        register(mcp)
+
+        fn = mcp._tool_manager._tools["read_wiki_structure"].fn
+        r1 = json.loads(fn(repo_url="microsoft/vscode"))
+        r2 = json.loads(fn(repo_url="microsoft/vscode"))
+        assert r1["meta"]["content_hash"] == r2["meta"]["content_hash"]
+        assert r1["idempotency_key"] == r2["idempotency_key"]

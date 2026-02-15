@@ -16,6 +16,7 @@ from mcp.server.fastmcp import FastMCP
 from .. import config
 from ..browser import _get_browser, run_in_browser_loop
 from ..cache import get_cached_search, set_cached_search
+from ..rate_limit import check_rate_limit
 from ..session_pool import get_or_create_session, release_session
 from ..types import (
     ErrorCode,
@@ -408,6 +409,10 @@ def register(mcp: FastMCP) -> None:
 
         Results are cached for 2 minutes — repeated identical queries are instant.
 
+        **Response size**: typically 0.5–5 KB depending on the answer.
+
+        **Rate limit**: max 10 calls per 60 s per repo URL.
+
         Args:
             repo_url: Full repository URL (e.g. https://github.com/microsoft/vscode-copilot-chat)
                       or shorthand owner/repo (e.g. microsoft/vscode-copilot-chat).
@@ -419,6 +424,18 @@ def register(mcp: FastMCP) -> None:
         validated = validate_search_input(repo_url, query)
         if isinstance(validated, ToolResponse):
             return validated.to_text()
+
+        # --- Rate limiting ---
+        if not check_rate_limit(validated.repo_url):
+            return ToolResponse.error(
+                ErrorCode.RATE_LIMITED,
+                f"Rate limit exceeded for {validated.repo_url}. "
+                f"Max {config.RATE_LIMIT_MAX_CALLS} calls per "
+                f"{config.RATE_LIMIT_WINDOW_SECONDS}s window. "
+                "Please wait before retrying.",
+                repo_url=validated.repo_url,
+                query=validated.query,
+            ).to_text()
 
         # Check search cache first
         cached = get_cached_search(validated.repo_url, validated.query)

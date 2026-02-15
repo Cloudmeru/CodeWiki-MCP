@@ -7,18 +7,17 @@ from codewiki_mcp.cache import (
     clear_cache,
     get_cached_page,
     get_cached_search,
+    get_cached_topics,
     get_cached_wiki_page,
     invalidate,
     set_cached_page,
     set_cached_search,
+    set_cached_topics,
     set_cached_wiki_page,
 )
 
 
 class TestPageCache:
-    def setup_method(self):
-        clear_cache()
-
     def test_miss_returns_none(self):
         assert get_cached_page("https://example.com/page") is None
 
@@ -65,9 +64,6 @@ class TestPageCache:
 
 
 class TestParsedCache:
-    def setup_method(self):
-        clear_cache()
-
     def test_miss_returns_none(self):
         assert get_cached_wiki_page("https://github.com/owner/repo") is None
 
@@ -79,9 +75,6 @@ class TestParsedCache:
 
 
 class TestSearchCache:
-    def setup_method(self):
-        clear_cache()
-
     def test_miss_returns_none(self):
         assert get_cached_search("repo", "query") is None
 
@@ -97,7 +90,37 @@ class TestSearchCache:
         set_cached_page("https://a.com", "html")
         set_cached_wiki_page("repo", {"fake": True})
         set_cached_search("repo", "q", "a")
+        set_cached_topics("repo", "topics")
         clear_cache()
         assert get_cached_page("https://a.com") is None
         assert get_cached_wiki_page("repo") is None
         assert get_cached_search("repo", "q") is None
+        assert get_cached_topics("repo") is None
+
+
+class TestTopicCache:
+    def setup_method(self):
+        clear_cache()
+
+    def test_miss_returns_none(self):
+        assert get_cached_topics("https://github.com/owner/repo") is None
+
+    def test_set_and_get(self):
+        repo = "https://github.com/owner/repo"
+        data = "## Topics\n- Architecture\n- Extensions"
+        set_cached_topics(repo, data)
+        assert get_cached_topics(repo) == data
+
+    def test_different_repos_independent(self):
+        set_cached_topics("repo-a", "topics-a")
+        set_cached_topics("repo-b", "topics-b")
+        assert get_cached_topics("repo-a") == "topics-a"
+        assert get_cached_topics("repo-b") == "topics-b"
+
+    def test_cache_stats_includes_topic(self):
+        stats = cache_stats()
+        assert "topic" in stats
+        assert stats["topic"]["current_size"] == 0
+        set_cached_topics("repo", "data")
+        stats = cache_stats()
+        assert stats["topic"]["current_size"] == 1

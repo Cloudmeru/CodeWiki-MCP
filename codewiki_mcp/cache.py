@@ -3,10 +3,11 @@
 Uses cachetools TTLCache to avoid hitting CodeWiki for every request.
 Wiki pages are updated infrequently (on PR merges), making caching very effective.
 
-Three caches:
+Four caches:
 - **HTML cache** — raw rendered HTML keyed by URL
 - **Parsed cache** — ``WikiPage`` objects keyed by repo URL (avoids re-parsing)
 - **Search cache** — search responses keyed by ``repo_url::query``
+- **Topic cache** — pre-built topic-list strings keyed by repo URL (30-min TTL)
 """
 
 from __future__ import annotations
@@ -94,6 +95,29 @@ def set_cached_search(repo_url: str, query: str, response: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Topic-list cache — longer TTL for stable structural data (30 min default)
+# ---------------------------------------------------------------------------
+_topic_cache: TTLCache[str, str] = TTLCache(
+    maxsize=config.TOPIC_CACHE_MAX_SIZE,
+    ttl=config.TOPIC_CACHE_TTL_SECONDS,
+)
+
+
+def get_cached_topics(repo_url: str) -> str | None:
+    """Return a cached topic-list string for *repo_url*, or ``None``."""
+    result = _topic_cache.get(repo_url)
+    if result is not None:
+        logger.debug("Topic-cache HIT for %s", repo_url)
+    return result
+
+
+def set_cached_topics(repo_url: str, data: str) -> None:
+    """Cache a topic-list string keyed by *repo_url*."""
+    _topic_cache[repo_url] = data
+    logger.debug("Topic-cache stored %s (%d chars)", repo_url, len(data))
+
+
+# ---------------------------------------------------------------------------
 # General-purpose helpers
 # ---------------------------------------------------------------------------
 def invalidate(url: str) -> None:
@@ -102,10 +126,11 @@ def invalidate(url: str) -> None:
 
 
 def clear_cache() -> None:
-    """Flush all caches (HTML + parsed + search)."""
+    """Flush all caches (HTML + parsed + search + topic)."""
     _page_cache.clear()
     _parsed_cache.clear()
     _search_cache.clear()
+    _topic_cache.clear()
     logger.debug("All caches cleared")
 
 
@@ -126,5 +151,10 @@ def cache_stats() -> dict[str, Any]:
             "current_size": len(_search_cache),
             "max_size": _search_cache.maxsize,
             "ttl_seconds": int(_search_cache.ttl),
+        },
+        "topic": {
+            "current_size": len(_topic_cache),
+            "max_size": _topic_cache.maxsize,
+            "ttl_seconds": int(_topic_cache.ttl),
         },
     }

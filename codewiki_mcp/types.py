@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from enum import Enum
@@ -128,6 +129,7 @@ class ErrorCode(str, Enum):
     INPUT_NOT_FOUND = "INPUT_NOT_FOUND"
     INTERNAL = "INTERNAL"
     RETRY_EXHAUSTED = "RETRY_EXHAUSTED"
+    RATE_LIMITED = "RATE_LIMITED"
 
 
 class ResponseMeta(BaseModel):
@@ -138,6 +140,12 @@ class ResponseMeta(BaseModel):
     attempt: int = 1
     max_attempts: int = 1
     truncated: bool = False
+    content_hash: str | None = None
+
+
+def _compute_hash(data: str) -> str:
+    """Compute a short MD5 hash of *data* for dedup / idempotency detection."""
+    return hashlib.md5(data.encode()).hexdigest()[:12]
 
 
 class ToolResponse(BaseModel):
@@ -149,6 +157,7 @@ class ToolResponse(BaseModel):
     data: str | None = None
     repo_url: str | None = None
     query: str | None = None
+    idempotency_key: str | None = None
     meta: ResponseMeta = Field(default_factory=ResponseMeta)
 
     def to_text(self) -> str:
@@ -166,13 +175,21 @@ class ToolResponse(BaseModel):
         query: str | None = None,
         meta: ResponseMeta | None = None,
     ) -> ToolResponse:
+        """Create a successful ToolResponse with content hash and idempotency key."""
         m = meta or ResponseMeta()
         m.char_count = len(data)
+        m.content_hash = _compute_hash(data)
+
+        # Build idempotency key from repo + content hash
+        idem_parts = [p for p in [repo_url, m.content_hash] if p]
+        idem_key = "::".join(idem_parts) if idem_parts else None
+
         return cls(
             status=ResponseStatus.OK,
             data=data,
             repo_url=repo_url,
             query=query,
+            idempotency_key=idem_key,
             meta=m,
         )
 
@@ -186,6 +203,7 @@ class ToolResponse(BaseModel):
         query: str | None = None,
         meta: ResponseMeta | None = None,
     ) -> ToolResponse:
+        """Create an error ToolResponse with given code and message."""
         return cls(
             status=ResponseStatus.ERROR,
             code=code,

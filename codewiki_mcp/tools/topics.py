@@ -13,8 +13,9 @@ import time
 from mcp.server.fastmcp import FastMCP
 
 from .. import config
+from ..cache import get_cached_topics, set_cached_topics
 from ..parser import page_to_topic_list
-from ..types import ResponseMeta, ToolResponse
+from ..types import ResponseMeta, ToolResponse, validate_topics_input
 from ._helpers import fetch_page_or_error, truncate_response
 
 logger = logging.getLogger("CodeWiki")
@@ -37,12 +38,35 @@ def register(mcp: FastMCP) -> None:
         Returns section titles with short content previews (not the full page).
         For detailed content, call ``read_wiki_contents`` with a section title.
 
+        **Response size**: typically 5–30 KB depending on the repository.
+        Cached for 30 minutes — repeated calls for the same repo are instant.
+
+        **Rate limit**: max 10 calls per 60 s per repo URL. Duplicate
+        concurrent calls are automatically deduplicated.
+
         Args:
             repo_url: Full repository URL (e.g. https://github.com/microsoft/vscode-copilot-chat)
                       or shorthand owner/repo (e.g. microsoft/vscode-copilot-chat).
         """
         start = time.monotonic()
         logger.info("list_code_wiki_topics — repo: %s", repo_url)
+
+        # Check topic-specific cache first (30-min TTL)
+        validated = validate_topics_input(repo_url)
+        if isinstance(validated, ToolResponse):
+            return validated.to_text()
+
+        cached = get_cached_topics(validated.repo_url)
+        if cached is not None:
+            elapsed = int((time.monotonic() - start) * 1000)
+            return ToolResponse.success(
+                cached,
+                repo_url=validated.repo_url,
+                meta=ResponseMeta(
+                    elapsed_ms=elapsed,
+                    char_count=len(cached),
+                ),
+            ).to_text()
 
         result = fetch_page_or_error(repo_url)
         if isinstance(result, ToolResponse):
@@ -54,6 +78,10 @@ def register(mcp: FastMCP) -> None:
             preview_chars=config.TOPIC_PREVIEW_CHARS,
         )
         data, truncated = truncate_response(data, config.RESPONSE_MAX_CHARS)
+
+        # Store in topic cache (long TTL)
+        set_cached_topics(validated.repo_url, data)
+
         elapsed = int((time.monotonic() - start) * 1000)
 
         return ToolResponse.success(

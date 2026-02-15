@@ -33,6 +33,12 @@ def register(mcp: FastMCP) -> None:
         or ``list_code_wiki_topics`` to discover available sections without
         consuming many tokens.
 
+        **Response size**: typically 1–3 KB (lightweight JSON).
+        Cached for 5 minutes — repeated calls are instant.
+
+        **Rate limit**: max 10 calls per 60 s per repo URL. Duplicate
+        concurrent calls are automatically deduplicated.
+
         Args:
             repo_url: Full repository URL (e.g. https://github.com/facebook/react)
                       or shorthand owner/repo (e.g. facebook/react).

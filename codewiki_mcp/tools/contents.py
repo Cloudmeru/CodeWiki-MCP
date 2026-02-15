@@ -48,6 +48,12 @@ def register(mcp: FastMCP) -> None:
         The response includes ``has_more`` and ``next_offset`` when more
         sections are available, so you can call again to continue.
 
+        **Response size**: 2–10 KB per section, 5–30 KB for paginated full page.
+        Cached for 5 minutes — repeated calls are instant.
+
+        **Rate limit**: max 10 calls per 60 s per repo URL. Duplicate
+        concurrent calls are automatically deduplicated.
+
         Args:
             repo_url: Full repository URL (e.g. https://github.com/facebook/react)
                       or shorthand owner/repo (e.g. facebook/react).

@@ -118,6 +118,11 @@ class TestToolResponse:
         assert resp.data == "hello world"
         assert resp.meta.char_count == 11
         assert resp.code is None
+        # content_hash and idempotency_key populated on success
+        assert resp.meta.content_hash is not None
+        assert len(resp.meta.content_hash) == 12
+        assert resp.idempotency_key is not None
+        assert "https://github.com/a/b" in resp.idempotency_key
 
     def test_error_factory(self):
         resp = ToolResponse.error(
@@ -134,6 +139,7 @@ class TestToolResponse:
         parsed = json.loads(text)
         assert parsed["status"] == "ok"
         assert parsed["data"] == "data here"
+        assert "content_hash" in parsed["meta"]
 
     def test_error_to_text_excludes_none(self):
         resp = ToolResponse.error(ErrorCode.VALIDATION, "bad input")
@@ -141,6 +147,7 @@ class TestToolResponse:
         parsed = json.loads(text)
         assert "data" not in parsed
         assert "query" not in parsed
+        assert "idempotency_key" not in parsed
 
     def test_meta_defaults(self):
         meta = ResponseMeta()
@@ -148,6 +155,36 @@ class TestToolResponse:
         assert meta.char_count == 0
         assert meta.attempt == 1
         assert meta.truncated is False
+        assert meta.content_hash is None
+
+    def test_content_hash_deterministic(self):
+        """Same data produces same hash."""
+        r1 = ToolResponse.success("identical content")
+        r2 = ToolResponse.success("identical content")
+        assert r1.meta.content_hash == r2.meta.content_hash
+
+    def test_content_hash_different_data(self):
+        """Different data produces different hashes."""
+        r1 = ToolResponse.success("data one")
+        r2 = ToolResponse.success("data two")
+        assert r1.meta.content_hash != r2.meta.content_hash
+
+    def test_idempotency_key_with_repo(self):
+        """Idempotency key includes repo_url and content_hash."""
+        r = ToolResponse.success("x", repo_url="https://github.com/a/b")
+        parts = r.idempotency_key.split("::")
+        assert len(parts) == 2
+        assert parts[0] == "https://github.com/a/b"
+
+    def test_idempotency_key_no_repo(self):
+        """Without repo_url, idempotency_key is just the hash."""
+        r = ToolResponse.success("x")
+        assert r.idempotency_key == r.meta.content_hash
+
+    def test_rate_limited_error_code(self):
+        """RATE_LIMITED error code exists."""
+        resp = ToolResponse.error(ErrorCode.RATE_LIMITED, "too many requests")
+        assert resp.code == ErrorCode.RATE_LIMITED
 
 
 # ---------------------------------------------------------------------------

@@ -1,7 +1,8 @@
 """Shared helpers for CodeWiki MCP tools.
 
 Eliminates boilerplate duplicated across tool modules: input validation,
-page fetching with error handling, response truncation, and URL construction.
+page fetching with error handling, response truncation, URL construction,
+in-flight deduplication, and rate limiting.
 """
 
 from __future__ import annotations
@@ -9,7 +10,9 @@ from __future__ import annotations
 import logging
 
 from .. import config
+from ..dedup import dedup_fetch
 from ..parser import WikiPage, fetch_wiki_page
+from ..rate_limit import check_rate_limit
 from ..types import (
     ErrorCode,
     ToolResponse,
@@ -66,15 +69,31 @@ def truncate_response(data: str, max_chars: int = 0) -> tuple[str, bool]:
 def fetch_page_or_error(repo_url: str) -> WikiPage | ToolResponse:
     """Validate *repo_url*, fetch and return a WikiPage, or a ToolResponse error.
 
-    Handles validation, NO_CONTENT, TIMEOUT, and generic exceptions in one
-    place so tool modules don't have to duplicate the same try/except block.
+    Handles validation, rate limiting, in-flight deduplication, NO_CONTENT,
+    TIMEOUT, and generic exceptions in one place so tool modules don't have
+    to duplicate the same try/except block.
     """
     validated = validate_topics_input(repo_url)
     if isinstance(validated, ToolResponse):
         return validated
 
+    # --- Rate limiting ---
+    if not check_rate_limit(validated.repo_url):
+        return ToolResponse.error(
+            ErrorCode.RATE_LIMITED,
+            f"Rate limit exceeded for {validated.repo_url}. "
+            f"Max {config.RATE_LIMIT_MAX_CALLS} calls per "
+            f"{config.RATE_LIMIT_WINDOW_SECONDS}s window. "
+            "Please wait before retrying.",
+            repo_url=validated.repo_url,
+        )
+
+    # --- Deduplicated fetch ---
     try:
-        page = fetch_wiki_page(validated.repo_url)
+        page = dedup_fetch(
+            validated.repo_url,
+            lambda: fetch_wiki_page(validated.repo_url),
+        )
     except TimeoutError as exc:
         return ToolResponse.error(
             ErrorCode.TIMEOUT,

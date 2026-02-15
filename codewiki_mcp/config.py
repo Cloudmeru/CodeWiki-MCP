@@ -57,6 +57,16 @@ SEARCH_CACHE_TTL_SECONDS: int = _env_int("CODEWIKI_SEARCH_CACHE_TTL", 120)  # 2 
 SEARCH_CACHE_MAX_SIZE: int = _env_int("CODEWIKI_SEARCH_CACHE_MAX_SIZE", 30)
 PARSED_CACHE_MAX_SIZE: int = _env_int("CODEWIKI_PARSED_CACHE_MAX_SIZE", 30)
 
+# Topic-list cache — structural data that rarely changes (longer TTL)
+TOPIC_CACHE_TTL_SECONDS: int = _env_int("CODEWIKI_TOPIC_CACHE_TTL", 1800)  # 30 min
+TOPIC_CACHE_MAX_SIZE: int = _env_int("CODEWIKI_TOPIC_CACHE_MAX_SIZE", 30)
+
+# ---------------------------------------------------------------------------
+# Rate limiting (per-repo sliding window)
+# ---------------------------------------------------------------------------
+RATE_LIMIT_WINDOW_SECONDS: int = _env_int("CODEWIKI_RATE_LIMIT_WINDOW", 60)
+RATE_LIMIT_MAX_CALLS: int = _env_int("CODEWIKI_RATE_LIMIT_MAX_CALLS", 10)
+
 # ---------------------------------------------------------------------------
 # Playwright chat timing
 # ---------------------------------------------------------------------------
