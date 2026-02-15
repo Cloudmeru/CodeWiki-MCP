@@ -35,7 +35,9 @@ def _shutdown(signum: int, _frame) -> None:
 
     # Clean up the session pool (best-effort)
     try:
-        from .session_pool import cleanup_pool  # pylint: disable=import-outside-toplevel
+        from .session_pool import (
+            cleanup_pool,
+        )  # pylint: disable=import-outside-toplevel
 
         cleanup_pool()
     except Exception:  # pylint: disable=broad-except
@@ -135,7 +137,9 @@ def main(argv: list[str] | None = None) -> None:
     finally:
         # Ensure session pool + Playwright cleanup even if signal handler didn't fire
         try:
-            from .session_pool import cleanup_pool  # pylint: disable=import-outside-toplevel
+            from .session_pool import (
+                cleanup_pool,
+            )  # pylint: disable=import-outside-toplevel
 
             cleanup_pool()
         except Exception:  # pylint: disable=broad-except

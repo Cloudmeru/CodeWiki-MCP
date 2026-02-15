@@ -50,7 +50,8 @@ def register(mcp: FastMCP) -> None:
 
         page = result
         data = page_to_topic_list(
-            page, preview_chars=config.TOPIC_PREVIEW_CHARS,
+            page,
+            preview_chars=config.TOPIC_PREVIEW_CHARS,
         )
         data, truncated = truncate_response(data, config.RESPONSE_MAX_CHARS)
         elapsed = int((time.monotonic() - start) * 1000)

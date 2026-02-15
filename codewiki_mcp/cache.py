@@ -12,14 +12,11 @@ Three caches:
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from cachetools import TTLCache
 
 from . import config
-
-if TYPE_CHECKING:
-    from .parser import WikiPage  # avoid circular import at runtime
 
 logger = logging.getLogger("CodeWiki")
 

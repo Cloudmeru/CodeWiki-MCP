@@ -50,9 +50,7 @@ def register(mcp: FastMCP) -> None:
         structure = {
             "repo": page.repo_name,
             "title": page.title,
-            "sections": [
-                {"title": s.title, "level": s.level} for s in page.sections
-            ],
+            "sections": [{"title": s.title, "level": s.level} for s in page.sections],
             "section_count": len(page.sections),
         }
 

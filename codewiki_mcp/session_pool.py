@@ -19,7 +19,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections import OrderedDict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from . import config
 from .browser import _get_browser, run_in_browser_loop

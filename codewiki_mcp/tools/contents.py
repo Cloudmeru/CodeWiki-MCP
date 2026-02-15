@@ -92,7 +92,9 @@ def register(mcp: FastMCP) -> None:
         else:
             # ----- Paginated full-page path -----
             total = len(page.sections)
-            sliced = page.sections[validated.offset : validated.offset + validated.limit]
+            sliced = page.sections[
+                validated.offset : validated.offset + validated.limit
+            ]
             has_more = (validated.offset + validated.limit) < total
 
             parts = [f"# {page.title}\n"]
