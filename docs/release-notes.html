@@ -90,19 +90,47 @@
 
   <div class="content">
     <h2>Latest Releases</h2>
+
     <section class="release">
-      <h3>v1.0.1 — 2026-02-14</h3>
+      <h3>v1.0.1 — 2026-02-15</h3>
       <ul>
-        <li>Initial public release.</li>
-        <li>Added Agent Skills documentation and client setup guides.</li>
-        <li>Mermaid diagrams and favicon added to docs.</li>
+        <li>Documentation updates and site polish:</li>
+        <ul>
+          <li>Added <a href="agents.html">Agentic AI Guide</a> and `Skills &amp; Client Setup` guide.</li>
+          <li>Added GitHub Copilot CLI installation and MCP integration section.</li>
+          <li>Added favicon (SVG + PNG + ICO) and updated docs head metadata.</li>
+          <li>Fixed Mermaid diagram syntax in <a href="architecture.html">architecture</a> and <a href="tools.html">tools</a> pages.</li>
+          <li>Published site to GitHub Pages and updated README link.</li>
+        </ul>
+        <li>Minor repo cleanup and formatting:</li>
+        <ul>
+          <li>Removed unused `server.py` and applied code style fixes (Black, Ruff, Pylint).</li>
+          <li>Small UI tweak: removed duplicate hero SVG (logo remains in sidebar).</li>
+        </ul>
       </ul>
     </section>
 
     <section class="release">
-      <h3>Unreleased</h3>
+      <h3>v1.0.0 — 2026-02-14</h3>
       <ul>
-        <li>Planned: raster favicons and CI automation for releases.</li>
+        <li>Stable release with core features:</li>
+        <ul>
+          <li>Playwright-based headless rendering for Google CodeWiki pages.</li>
+          <li>Diagram extraction (Mermaid, Graphviz, inline SVG parsing).</li>
+          <li>Four MCP tools: topics overview, structure JSON TOC, full/section content, interactive chat Q&amp;A.</li>
+        </ul>
+        <li>Release infra:</li>
+        <ul>
+          <li>PyPI packaging and a GitHub Actions workflow for trusted publishing.</li>
+          <li>Dockerfile updated to install from PyPI and include Playwright dependencies.</li>
+        </ul>
+      </ul>
+    </section>
+
+    <section class="release">
+      <h3>v0.3.0 — initial</h3>
+      <ul>
+        <li>Initial development baseline and repository import.</li>
       </ul>
     </section>
   </div>
