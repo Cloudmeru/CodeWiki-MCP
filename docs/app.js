@@ -27,3 +27,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 });
+
+// Mermaid support: load and initialize Mermaid if any .mermaid blocks exist
+if (document.querySelector('.mermaid')) {
+  const s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
+  s.onload = () => {
+    try {
+      if (window.mermaid && typeof mermaid.initialize === 'function') {
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+        mermaid.init(undefined, document.querySelectorAll('.mermaid'));
+      }
+    } catch (e) {
+      console.warn('Mermaid initialization failed', e);
+    }
+  };
+  document.body.appendChild(s);
+}

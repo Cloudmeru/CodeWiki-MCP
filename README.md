@@ -1,5 +1,7 @@
 # CodeWiki MCP Server
 
+Documentation: [https://cloudmeru.github.io/CodeWiki-MCP](https://cloudmeru.github.io/CodeWiki-MCP)
+
 A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that provides AI-powered access to [Google CodeWiki](https://codewiki.google/) for open-source repositories. Query any GitHub, GitLab, or Bitbucket repository and get instant, AI-generated answers about the codebase — all from your editor.
 
 ## Features

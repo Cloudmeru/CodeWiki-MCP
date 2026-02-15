@@ -67,6 +67,14 @@
     <h1 class="page-title">Architecture</h1>
     <p class="page-subtitle">How CodeWiki MCP works under the hood — Playwright-everywhere design.</p>
 
+    <h2>Architecture Diagram</h2>
+    <div class="diagram">
+      <div class="mermaid">
+        graph LR
+          Editor((Editor / CLI / MCP Client)) -->|requests| Tools[Tools]\n          Tools -->|renders via| Browser[Browser Singleton]\n          Browser --> Playwright[Playwright (Chromium)]\n          Playwright --> Parser[Parser (BeautifulSoup)]\n          Parser --> Tools\n          Browser --> Cache[TTL Cache]\n          Tools --> Response[JSON Response]
+      </div>
+    </div>
+
     <h2>Why Playwright?</h2>
     <p>Google CodeWiki is an <strong>Angular SPA</strong> (<code>&lt;sdlc-agents-root&gt;</code>) — a plain HTTP GET returns an empty body. All page content is rendered client-side, so every tool uses <strong>Playwright headless Chromium</strong> to get actual content.</p>
 
