@@ -71,13 +71,13 @@
     <div class="diagram">
       <div class="mermaid">
         graph LR
-          Editor((Editor / CLI / MCP Client)) -->|requests| Tools[Tools]
-          Tools -->|renders via| Browser[Browser Singleton]
-          Browser --> Playwright[Playwright (Chromium)]
-          Playwright --> Parser[Parser (BeautifulSoup)]
-          Parser --> Tools
-          Browser --> Cache[TTL Cache]
-          Tools --> Response[JSON Response]
+          A[Editor Client] -->|requests| B[Tools Layer]
+          B -->|renders via| C[Browser Singleton]
+          C --> D[Playwright Chromium]
+          D --> E[Parser]
+          E --> B
+          C --> F[TTL Cache]
+          B --> G[JSON Response]
       </div>
     </div>
 
