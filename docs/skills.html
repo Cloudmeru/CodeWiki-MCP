@@ -74,7 +74,7 @@
 <main class="main">
   <div class="content">
     <h1 class="page-title">Skills &amp; Client Setup Guide</h1>
-    <p class="page-subtitle">How to add CodeWiki MCP as a skill, custom instruction, or tool in VS Code, Claude Desktop, Cursor, Windsurf, and other AI clients.</p>
+    <p class="page-subtitle">How to add CodeWiki MCP as a skill, custom instruction, or tool in VS Code, Copilot CLI, Claude Desktop, Cursor, Windsurf, and other AI clients.</p>
 
     <!-- Overview -->
     <h2>Overview</h2>
@@ -87,6 +87,7 @@
         <tr><td><strong>VS Code</strong></td><td>Custom Instructions</td><td><code>.github/copilot-instructions.md</code></td></tr>
         <tr><td><strong>VS Code</strong></td><td>Prompt Files</td><td><code>.github/prompts/</code></td></tr>
         <tr><td><strong>VS Code</strong></td><td>Custom Agents</td><td><code>.github/agents/</code></td></tr>
+        <tr><td><strong>Copilot CLI</strong></td><td>Skills + MCP + Instructions</td><td><code>~/.copilot/</code></td></tr>
         <tr><td><strong>Claude Desktop</strong></td><td>MCP Server</td><td><code>claude_desktop_config.json</code></td></tr>
         <tr><td><strong>Cursor</strong></td><td>MCP Server</td><td><code>.cursor/mcp.json</code></td></tr>
         <tr><td><strong>Windsurf</strong></td><td>MCP Server</td><td><code>~/.codeium/windsurf/mcp_config.json</code></td></tr>
@@ -295,6 +296,106 @@ questions.
 
     <h3>Use it in chat</h3>
     <p>Select <strong>"CodeWiki Researcher"</strong> from the agents dropdown in VS Code Chat, or type <code>@codewiki-researcher</code>.</p>
+
+    <!-- ============================================================ -->
+    <!-- GITHUB COPILOT CLI -->
+    <!-- ============================================================ -->
+    <h2>GitHub Copilot CLI</h2>
+    <p><a href="https://docs.github.com/en/copilot/concepts/agents/about-copilot-cli" target="_blank">GitHub Copilot CLI</a> is a powerful terminal-based AI agent that supports <strong>Agent Skills</strong>, <strong>MCP servers</strong>, <strong>custom instructions</strong>, and <strong>custom agents</strong> — the same customization primitives as VS Code.</p>
+
+    <h3>Step 1 — Install Copilot CLI</h3>
+    <pre><code># npm (all platforms — requires Node.js 22+)
+npm install -g @github/copilot
+
+# WinGet (Windows)
+winget install GitHub.Copilot
+
+# Homebrew (macOS / Linux)
+brew install copilot-cli
+
+# Install script (macOS / Linux)
+curl -fsSL https://gh.io/copilot-install | bash</code></pre>
+    <p>Then start a session with <code>copilot</code> and authenticate using the <code>/login</code> slash command.</p>
+
+    <h3>Step 2 — Add CodeWiki MCP server</h3>
+    <p>Inside an interactive Copilot CLI session, use the <code>/mcp add</code> slash command:</p>
+    <pre><code># In a Copilot CLI session:
+/mcp add
+
+# Fill in the fields:
+#   Name:    codewiki
+#   Command: codewiki-mcp
+#   Args:    (leave empty)
+# Press Ctrl+S to save</code></pre>
+    <p>The server config is stored in <code>~/.copilot/mcp-config.json</code>. You can also edit this file directly:</p>
+    <pre><code>{
+  "mcpServers": {
+    "codewiki": {
+      "command": "codewiki-mcp"
+    }
+  }
+}</code></pre>
+    <p>Verify the server is active with <code>/mcp</code> in the interactive session.</p>
+
+    <h3>Step 3 — Skills (automatic)</h3>
+    <p>Copilot CLI reads Agent Skills from the same locations as VS Code:</p>
+    <table>
+      <thead><tr><th>Scope</th><th>Location</th></tr></thead>
+      <tbody>
+        <tr><td>Repository</td><td><code>.github/skills/</code></td></tr>
+        <tr><td>User (personal)</td><td><code>~/.copilot/skills/</code></td></tr>
+      </tbody>
+    </table>
+    <p>If you created the <code>.github/skills/codewiki-research/SKILL.md</code> file from the VS Code section above, Copilot CLI will automatically discover and use it when relevant.</p>
+
+    <h3>Step 4 — Custom instructions (automatic)</h3>
+    <p>Copilot CLI automatically picks up:</p>
+    <ul>
+      <li><code>.github/copilot-instructions.md</code> — repository-wide instructions</li>
+      <li><code>.github/instructions/**/*.instructions.md</code> — path-specific instructions</li>
+      <li><code>AGENTS.md</code> — multi-agent compatible instructions</li>
+    </ul>
+    <p>All instruction files combine and are included in your prompts automatically.</p>
+
+    <h3>Step 5 — Custom agents</h3>
+    <p>Copilot CLI loads custom agents from:</p>
+    <table>
+      <thead><tr><th>Scope</th><th>Location</th></tr></thead>
+      <tbody>
+        <tr><td>User-level</td><td><code>~/.copilot/agents/</code></td></tr>
+        <tr><td>Repository-level</td><td><code>.github/agents/</code></td></tr>
+        <tr><td>Organization-level</td><td><code>.github-private/agents/</code></td></tr>
+      </tbody>
+    </table>
+    <p>Use agents with the <code>/agent</code> slash command, reference them in a prompt, or pass <code>--agent=name</code> on the command line:</p>
+    <pre><code># Interactive mode — pick from list
+/agent
+
+# Reference in a prompt
+Use the codewiki-researcher agent to explain React fiber
+
+# Programmatic mode
+copilot --agent=codewiki-researcher -p "Explain React fiber"</code></pre>
+
+    <h3>Step 6 — MCP tool permissions</h3>
+    <p>By default Copilot CLI asks approval before using MCP tools. You can pre-approve CodeWiki tools:</p>
+    <pre><code># Allow all tools from the codewiki server
+copilot --allow-tool 'codewiki'
+
+# Or allow all tools globally (use with caution)
+copilot --allow-all-tools</code></pre>
+
+    <h3>Copilot CLI built-in agents</h3>
+    <p>Copilot CLI ships with specialized agents you can combine with CodeWiki:</p>
+    <table>
+      <thead><tr><th>Agent</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Explore</strong></td><td>Quick codebase analysis without adding to main context</td></tr>
+        <tr><td><strong>Task</strong></td><td>Execute commands (tests, builds) with summary output</td></tr>
+        <tr><td><strong>Plan</strong></td><td>Analyze dependencies and create implementation plans</td></tr>
+        <tr><td><strong>Code-review</strong></td><td>Review changes, surfacing genuine issues</td></tr>
+      </tbody>
+    </table>
 
     <!-- ============================================================ -->
     <!-- CLAUDE DESKTOP -->
@@ -513,6 +614,8 @@ codewiki-mcp --sse --port 8080</code></pre>
     <ul>
       <li><a href="https://agentskills.io/" target="_blank">Agent Skills Standard — agentskills.io</a></li>
       <li><a href="https://code.visualstudio.com/docs/copilot/customization/agent-skills" target="_blank">VS Code: Agent Skills Documentation</a></li>
+      <li><a href="https://docs.github.com/en/copilot/concepts/agents/about-copilot-cli" target="_blank">GitHub Copilot CLI: About &amp; Installation</a></li>
+      <li><a href="https://docs.github.com/en/copilot/how-tos/copilot-cli/use-copilot-cli" target="_blank">GitHub Copilot CLI: Usage Guide</a></li>
       <li><a href="https://code.visualstudio.com/docs/copilot/customization/custom-instructions" target="_blank">VS Code: Custom Instructions</a></li>
       <li><a href="https://code.visualstudio.com/docs/copilot/customization/prompt-files" target="_blank">VS Code: Prompt Files</a></li>
       <li><a href="https://code.visualstudio.com/docs/copilot/customization/custom-agents" target="_blank">VS Code: Custom Agents</a></li>
