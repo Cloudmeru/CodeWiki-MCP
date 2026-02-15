@@ -1,7 +1,7 @@
 # CodeWiki MCP Server
 
-<p align="left">
-  <img src="docs/favicon.svg" alt="CodeWiki MCP logo" width="64" height="64">
+<p align="center">
+  <img src="docs/favicon.svg" alt="CodeWiki MCP logo" width="96" height="96">
 </p>
 
 Documentation: [https://cloudmeru.github.io/CodeWiki-MCP](https://cloudmeru.github.io/CodeWiki-MCP)
