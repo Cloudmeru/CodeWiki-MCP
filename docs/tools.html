@@ -71,7 +71,14 @@
     <div class="diagram">
       <div class="mermaid">
         graph LR
-          A[list_code_wiki_topics] -->|calls| B[Browser Singleton]\n          C[read_wiki_structure] -->|calls| B\n          D[read_wiki_contents] -->|calls| B\n          E[search_code_wiki] -->|calls| B\n          B --> F[Playwright]\n+          F --> G[Parser]\n+          G --> H[JSON Response]\n+          B --> I[TTL Cache]
+          A[list_code_wiki_topics] -->|calls| B[Browser Singleton]
+          C[read_wiki_structure] -->|calls| B
+          D[read_wiki_contents] -->|calls| B
+          E[search_code_wiki] -->|calls| B
+          B --> F[Playwright]
+          F --> G[Parser]
+          G --> H[JSON Response]
+          B --> I[TTL Cache]
       </div>
     </div>
 
