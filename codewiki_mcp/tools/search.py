@@ -17,7 +17,10 @@ from .. import config
 from ..browser import _get_browser, run_in_browser_loop
 from ..cache import get_cached_search, set_cached_search
 from ..rate_limit import check_rate_limit
-from ..session_pool import get_or_create_session, release_session
+from ..session_pool import (
+    _get_or_create,
+    _release,
+)
 from ..stealth import (
     apply_stealth_scripts,
     human_click,
@@ -98,20 +101,30 @@ async def _wait_for_submit_enabled(page, timeout_ms: int = 5000) -> None:
             continue
 
 
-async def _click_submit(page) -> bool:
-    """Click the submit/send button.  Returns True if clicked."""
+async def _submit_query(page, chat_input) -> None:
+    """Submit the chat query via Enter; fall back to button click if needed.
+
+    After pressing Enter, the send button becomes disabled if the message
+    was accepted.  Only click the button when Enter did NOT submit.
+    """
+    await chat_input.press("Enter")
+    await random_delay(0.3, 0.6)
+
+    # Check if Enter already submitted (button disabled = message sent)
     for selector in config.SUBMIT_BUTTON_SELECTORS:
         try:
             btn = page.locator(selector).first
             if await btn.is_visible(timeout=1000):
-                disabled = await btn.is_disabled()
-                if not disabled:
-                    await btn.click()
-                    logger.debug("Clicked submit: %s", selector)
-                    return True
+                if await btn.is_disabled():
+                    logger.debug("Enter submitted successfully (button disabled)")
+                    return
+                # Button still enabled → Enter didn't work, click it
+                await btn.click()
+                logger.debug("Clicked submit as fallback: %s", selector)
+                return
         except Exception:  # pylint: disable=broad-except
             continue
-    return False
+    logger.debug("No submit button found after Enter")
 
 
 async def _wait_for_response(page) -> str:  # pylint: disable=too-many-branches
@@ -199,9 +212,12 @@ async def _search_impl(inp: SearchInput) -> ToolResponse:
     logger.info("Target URL: %s", target_url)
 
     # Try to get a warm session from the pool
+    # NOTE: _search_impl runs ON the browser event loop, so we must use the
+    # async _get_or_create/_release directly — the sync wrappers would
+    # deadlock by trying to submit coroutines to this same loop.
     broken = False
     try:
-        entry = get_or_create_session(target_url)
+        entry = await _get_or_create(target_url)
         page = entry.page
     except Exception as exc:  # pylint: disable=broad-except
         logger.warning("Session pool failed, falling back to fresh context: %s", exc)
@@ -242,11 +258,9 @@ async def _search_impl(inp: SearchInput) -> ToolResponse:
         # Wait for the send button to become enabled
         await _wait_for_submit_enabled(page, timeout_ms=3000)
 
-        # Submit via Enter key first, then click button as fallback
+        # Submit the query
         await random_delay(0.1, 0.3)
-        await chat_input.press("Enter")
-        await random_delay(0.3, 0.8)
-        await _click_submit(page)
+        await _submit_query(page, chat_input)
 
         # Wait a bit before polling for response
         await asyncio.sleep(config.RESPONSE_INITIAL_DELAY_SECONDS)
@@ -284,7 +298,7 @@ async def _search_impl(inp: SearchInput) -> ToolResponse:
             query=inp.query,
         )
     finally:
-        release_session(target_url, broken=broken)
+        await _release(target_url, broken=broken)
 
 
 async def _ensure_chat_open_async(page) -> bool:
@@ -342,9 +356,7 @@ async def _search_fresh_context(inp: SearchInput, target_url: str) -> ToolRespon
         await random_delay(0.3, 0.8)
         await _wait_for_submit_enabled(page, timeout_ms=3000)
         await random_delay(0.1, 0.3)
-        await chat_input.press("Enter")
-        await random_delay(0.3, 0.8)
-        await _click_submit(page)
+        await _submit_query(page, chat_input)
         await asyncio.sleep(config.RESPONSE_INITIAL_DELAY_SECONDS)
 
         response_text = await _wait_for_response(page)
