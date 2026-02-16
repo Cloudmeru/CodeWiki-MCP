@@ -186,23 +186,35 @@ agents:
     </div>
 
     <div class="tool-card">
-      <h3>Master Workflow</h3>
-      <pre><code>1. CLASSIFY the user's intent from their message
-2. DELEGATE immediately to the chosen subagent via the `agent` tool:
-   - Include the repo URL (owner/repo format)
-   - Include the specific question to answer
-   - Subagents are stateless and have their own tools — they will
-     fetch data and handle errors (including NOT_INDEXED) independently
-3. PRESENT THE FULL RESULT: Show the complete subagent response —
-   tables, citations, code snippets, everything. Do NOT replace it
-   with a brief summary like "Done" or "Comparison delivered".
-   Optionally add follow-up suggestions AFTER the full content.
-4. MULTI-STEP: For complex requests spanning specialties,
-   run subagents sequentially
+      <h3>Master Workflow (optimized for low-level LLMs)</h3>
+      <p>The master agent uses a rigid, numbered step-by-step format with explicit output templates. This structure is designed so small models (GPT-5 Mini, GPT-4.1 mini) can follow it reliably.</p>
+      <pre><code># CRITICAL RULE — READ THIS FIRST
+You MUST show the FULL subagent response to the user.
+DO NOT summarize. DO NOT shorten. DO NOT say "Done".
+Copy the ENTIRE subagent output into your reply.
 
-Example delegation prompt:
-  "Research facebook/prophet — explain its main features.
-   Repo: facebook/prophet"</code></pre>
+# Step 1: Pick the Right Subagent
+Read the user's message. Pick ONE subagent from the routing table.
+
+# Step 2: Call the Subagent
+Use the `agent` tool. Send a clear prompt with the repo name
+and the user's question.
+
+# Step 3: Show the FULL Result
+This is the MOST IMPORTANT step.
+1. Write a short intro line ("Here is the comparison:")
+2. Copy the ENTIRE subagent response below that line
+3. Optionally add follow-up suggestions AFTER the full result
+
+### GOOD Example
+  Here is the comparison:
+  ## Performance
+  FastAPI uses async and is faster...
+  (... full content from subagent ...)
+
+### BAD Example — NEVER DO THIS
+  Done — comparison delivered.
+  Want me to explore anything else?</code></pre>
     </div>
 
     <!-- Specialist Subagents -->
@@ -398,6 +410,40 @@ tools:
     <h3>8. Always Present the Full Subagent Result</h3>
     <div class="tool-card">
       <p>A common pitfall: the master receives a detailed response from a subagent (comparison tables, cited sections, code examples) but only shows the user a brief summary like <em>"Done — comparison delivered. Want me to do X?"</em>. The subagent's output <strong>IS</strong> the answer — always present the complete content first, then optionally suggest follow-ups after. The master's synthesis step must never gate or truncate results behind a follow-up question.</p>
+      <p><strong>Fix:</strong> Adding a prose instruction like "present the full result" is NOT enough for small models. You need a rigid output template with GOOD/BAD examples — see Lesson #9.</p>
+    </div>
+
+    <h3>9. Structure Instructions for Low-Level LLMs</h3>
+    <div class="tool-card">
+      <p>Small models (GPT-5 Mini, GPT-4.1 mini/nano) often ignore nuanced prose instructions. After 3 failed test iterations, we discovered the fix: restructure <em>how</em> the instructions are written.</p>
+
+      <p><strong>What works for small models:</strong></p>
+      <ul>
+        <li><strong>Short sentences.</strong> One idea per sentence. No subordinate clauses.</li>
+        <li><strong>Numbered steps.</strong> "Step 1: ... Step 2: ... Step 3: ..." — not paragraphs.</li>
+        <li><strong>ALL CAPS for critical rules.</strong> "ALWAYS", "NEVER", "DO NOT" — not "please consider".</li>
+        <li><strong>Explicit GOOD/BAD examples.</strong> Show exactly what the output should and should not look like.</li>
+        <li><strong>Repeat the critical rule</strong> at the top, in the steps, and at the bottom.</li>
+        <li><strong>Tables over prose</strong> for routing decisions — models parse tables better than conditional paragraphs.</li>
+        <li><strong>Horizontal rules (<code>---</code>)</strong> to visually separate sections.</li>
+      </ul>
+
+      <p><strong>Before (ignored by small models):</strong></p>
+      <pre><code>When the subagent returns, show the user the complete response —
+tables, citations, code snippets, everything. Do NOT summarize,
+truncate, or replace the result with a brief status message.</code></pre>
+
+      <p><strong>After (followed reliably):</strong></p>
+      <pre><code># CRITICAL RULE — READ THIS FIRST
+You MUST show the FULL subagent response to the user.
+DO NOT summarize. DO NOT shorten. DO NOT say "Done".
+Copy the ENTIRE subagent output into your reply.
+
+...
+
+# Reminder (at the very bottom)
+The user CANNOT see the subagent's response unless YOU paste it.
+ALWAYS paste the full response.</code></pre>
     </div>
     <!-- ─── Generic Agent Integration ─── -->
     <h2 id="generic-integration">Generic Agent Integration</h2>
