@@ -65,6 +65,10 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
       Skills &amp; Client Setup
     </a>
+    <a href="testing-guide.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      Agent Testing Guide
+    </a>
   </nav>
   <div class="sidebar-footer">
     <a href="https://github.com/Cloudmeru/CodeWiki-MCP" target="_blank">
@@ -79,13 +83,280 @@
 <main class="main">
   <div class="content">
     <h1 class="page-title">Agentic AI Guide</h1>
-    <p class="page-subtitle">How to build AI agents and system prompts that leverage CodeWiki MCP for codebase understanding.</p>
+    <p class="page-subtitle">How to build AI agents that leverage CodeWiki MCP — featuring proven VS Code custom agent definitions and lessons learned.</p>
 
     <!-- Overview -->
     <h2>Overview</h2>
-    <p>CodeWiki MCP turns any LLM agent into a <strong>codebase-aware assistant</strong>. By wiring the 5 MCP tools into your agent's tool belt, it can autonomously explore repository documentation, understand architecture, and answer deep technical questions — all grounded in Google CodeWiki's AI-generated knowledge.</p>
+    <p>CodeWiki MCP turns any LLM agent into a <strong>codebase-aware assistant</strong>. This guide covers two approaches:</p>
+    <ol>
+      <li><strong>VS Code Custom Agents</strong> — Production-tested <code>.agent.md</code> definitions that ship with this project, using a master orchestrator + specialist subagent pattern.</li>
+      <li><strong>Generic Agent Integration</strong> — System prompts and MCP client configs for any LLM framework (Claude Desktop, custom Python agents, etc.).</li>
+    </ol>
 
-    <h2>Skill Definition</h2>
+    <!-- ─── VS Code Custom Agents ─── -->
+    <h2 id="vscode-agents">VS Code Custom Agents</h2>
+    <p>This project ships with <strong>5 production-tested agent definitions</strong> in <code>.github/agents/</code> that work with GitHub Copilot's custom agent system. The architecture uses a <strong>master orchestrator</strong> that routes requests to 4 specialist subagents.</p>
+
+    <h3>Architecture Diagram</h3>
+    <div class="tool-card" style="text-align:center; padding: 2rem;">
+      <pre style="text-align:left; display:inline-block; font-size: 0.85rem; line-height: 1.6;"><code>                  ┌──────────────────┐
+    @codewiki ──▶  │  CodeWiki Master  │
+                  │   (orchestrator)  │
+                  └────────┬─────────┘
+                           │
+              ┌────────────┼────────────┐
+              │            │            │
+     ┌────────▼───┐  ┌────▼─────┐  ┌──▼──────────┐
+     │ Researcher  │  │ Reviewer │  │  Architect   │
+     │ (general)   │  │ (code)   │  │  (design)    │
+     └─────────────┘  └──────────┘  └──────────────┘
+              │
+     ┌────────▼──────┐
+     │  Comparison   │
+     │  (multi-repo) │
+     └───────────────┘
+
+  Master tools: codewiki_list_topics, codewiki_request_indexing, agent
+  Subagent tools: all 5 codewiki_* tools (read-only access)</code></pre>
+    </div>
+
+    <h3>Key Design Decisions</h3>
+    <table>
+      <thead><tr><th>Decision</th><th>Rationale</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Master only gets 2 MCP tools</strong></td>
+          <td><code>codewiki_list_topics</code> (for availability checks) and <code>codewiki_request_indexing</code> (for unindexed repos). All read/search tools belong to subagents only — this forces delegation.</td>
+        </tr>
+        <tr>
+          <td><strong>Pre-fetch + context passing</strong></td>
+          <td>Master calls <code>codewiki_list_topics</code> first, then includes the result in the subagent prompt. This saves a round-trip and avoids duplicate tool calls.</td>
+        </tr>
+        <tr>
+          <td><strong><code>user-invokable: false</code> on subagents</strong></td>
+          <td>Prevents users from bypassing the orchestrator. Only the master is directly invokable via <code>@codewiki</code>.</td>
+        </tr>
+        <tr>
+          <td><strong>Server name consistency</strong></td>
+          <td>The server name in <code>.vscode/mcp.json</code> (<code>codewiki-mcp</code>) must exactly match the tool prefix in agent files (<code>codewiki-mcp/codewiki_*</code>).</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Master Agent -->
+    <h3 id="master-agent">1. Master Orchestrator — <code>codewiki.agent.md</code></h3>
+    <p>The entry point. Users invoke <code>@codewiki</code> in VS Code Chat, and this agent routes to the right specialist.</p>
+    <div class="tool-card">
+      <h3>YAML Frontmatter</h3>
+      <pre><code>---
+name: CodeWiki
+description: Master agent that routes your request to the right CodeWiki specialist
+argument-hint: Any question about open-source repos, e.g., "Explain React's architecture"
+model: GPT-5 Mini (copilot)
+tools:
+  - 'agent'
+  - 'codewiki-mcp/codewiki_list_topics'
+  - 'codewiki-mcp/codewiki_request_indexing'
+agents:
+  - 'CodeWiki Researcher'
+  - 'CodeWiki Code Review'
+  - 'CodeWiki Architecture Explorer'
+  - 'CodeWiki Comparison'
+---</code></pre>
+    </div>
+
+    <div class="tool-card">
+      <h3>Routing Rules</h3>
+      <table>
+        <thead><tr><th>User Intent</th><th>Subagent</th><th>Signal Words</th></tr></thead>
+        <tbody>
+          <tr><td>General exploration</td><td>CodeWiki Researcher</td><td>"what is", "explain", "tell me about", "overview"</td></tr>
+          <tr><td>Code analysis</td><td>CodeWiki Code Review</td><td>"review", "analyse", "module", "function", "code"</td></tr>
+          <tr><td>System design</td><td>CodeWiki Architecture Explorer</td><td>"architecture", "design", "structure", "hierarchy"</td></tr>
+          <tr><td>Multi-repo comparison</td><td>CodeWiki Comparison</td><td>"compare", "vs", "difference", "or"</td></tr>
+          <tr><td>Unindexed repo</td><td><em>Master handles directly</em></td><td>Any repo returning NOT_INDEXED</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="tool-card">
+      <h3>Master Workflow</h3>
+      <pre><code>1. CLASSIFY the user's intent from their message
+2. PRE-CHECK: Call codewiki_list_topics for the repo(s) mentioned
+   - If NOT_INDEXED → call codewiki_request_indexing, inform user, stop
+   - If OK → save the topic listing for step 3
+3. DELEGATE to the chosen subagent via the `agent` tool:
+   - Include the repo URL (owner/repo format)
+   - Include the specific question to answer
+   - Include the pre-fetched topic listing from step 2
+4. SYNTHESIZE: Present the subagent's result to the user
+5. MULTI-STEP: For complex requests spanning specialties,
+   run subagents sequentially, passing earlier output as context
+
+Example delegation prompt:
+  "Research facebook/prophet — explain its main features.
+   Repo: facebook/prophet
+   Here are the available CodeWiki topics (pre-fetched):
+   &lt;paste codewiki_list_topics output&gt;
+   Use codewiki_read_contents and codewiki_search_wiki to
+   get detailed information from the most relevant sections."</code></pre>
+    </div>
+
+    <!-- Specialist Subagents -->
+    <h3 id="subagents">2. Specialist Subagents</h3>
+    <p>All 4 specialists share the same tool access (all 5 <code>codewiki_*</code> tools) but differ in their persona, workflow, and output format. All have <code>user-invokable: false</code>.</p>
+
+    <div class="tool-card">
+      <h3>2a. CodeWiki Researcher</h3>
+      <p><strong>File:</strong> <code>codewiki-researcher.agent.md</code> — General-purpose exploration and documentation lookup.</p>
+      <pre><code>---
+name: CodeWiki Researcher
+description: Explores open-source codebases using Google CodeWiki
+model: GPT-5 Mini (copilot)
+user-invocable: false
+tools:
+  - 'codewiki-mcp/codewiki_list_topics'
+  - 'codewiki-mcp/codewiki_read_structure'
+  - 'codewiki-mcp/codewiki_read_contents'
+  - 'codewiki-mcp/codewiki_search_wiki'
+  - 'codewiki-mcp/codewiki_request_indexing'
+---
+
+Workflow:
+1. codewiki_read_structure → cheapest discovery
+2. codewiki_list_topics → titles + 200-char previews
+3. codewiki_read_contents(section_title=...) → targeted reads
+4. codewiki_search_wiki → specific implementation questions
+5. Synthesize with citations to CodeWiki sections</code></pre>
+    </div>
+
+    <div class="tool-card">
+      <h3>2b. CodeWiki Code Review</h3>
+      <p><strong>File:</strong> <code>codewiki-reviewer.agent.md</code> — Helps developers understand unfamiliar code during reviews.</p>
+      <pre><code>---
+name: CodeWiki Code Review
+description: Helps developers understand unfamiliar codebases during code review
+model: GPT-5 Mini (copilot)
+user-invocable: false
+tools: [all 5 codewiki-mcp/* tools]
+---
+
+Focus: Code structure, patterns, implementation details.
+Tone: Concise, technical, review-note style.
+Output: References specific modules, classes, or functions.</code></pre>
+    </div>
+
+    <div class="tool-card">
+      <h3>2c. CodeWiki Architecture Explorer</h3>
+      <p><strong>File:</strong> <code>codewiki-architect.agent.md</code> — Maps and explains project architectures.</p>
+      <pre><code>---
+name: CodeWiki Architecture Explorer
+description: Maps and explains project architectures
+model: GPT-5 Mini (copilot)
+user-invocable: false
+tools: [all 5 codewiki-mcp/* tools]
+---
+
+Output Format:
+- Overview: One paragraph summary
+- Key Components: Bullet list with descriptions
+- Data Flow: How data moves through the system
+- Patterns: Design patterns and architectural decisions
+- Extension Points: How to extend or customize</code></pre>
+    </div>
+
+    <div class="tool-card">
+      <h3>2d. CodeWiki Comparison</h3>
+      <p><strong>File:</strong> <code>codewiki-comparison.agent.md</code> — Side-by-side multi-repo comparison.</p>
+      <pre><code>---
+name: CodeWiki Comparison
+description: Compares multiple open-source repositories side-by-side
+model: GPT-5 Mini (copilot)
+user-invocable: false
+tools: [all 5 codewiki-mcp/* tools]
+---
+
+Output Format: Structured comparison table
+| Aspect       | Repo A         | Repo B         |
+|--------------|----------------|----------------|
+| Architecture | ...            | ...            |
+| Key Pattern  | ...            | ...            |
+
+Handles NOT_INDEXED gracefully — continues with available repos,
+notes which comparisons are incomplete.</code></pre>
+    </div>
+
+    <!-- Lessons Learned -->
+    <h2 id="lessons-learned">Lessons Learned</h2>
+    <p>Key insights from building, testing, and debugging the VS Code custom agent system.</p>
+
+    <h3>1. Server Name Must Match Tool Prefix</h3>
+    <div class="tool-card">
+      <p>The server name in <code>.vscode/mcp.json</code> is used as the tool prefix in agent files. If your config says <code>"codewiki-mcp"</code>, your agent tools must reference <code>codewiki-mcp/codewiki_list_topics</code> — not <code>codewikiMcp/codewiki_list_topics</code>.</p>
+      <pre><code>// .vscode/mcp.json — this name ↓ ...
+{
+  "servers": {
+    "codewiki-mcp": {
+      "type": "stdio",
+      "command": "codewiki-mcp"
+    }
+  }
+}
+
+// ... must match this prefix ↓ in .agent.md files
+tools:
+  - 'codewiki-mcp/codewiki_list_topics'</code></pre>
+    </div>
+
+    <h3>2. Master Should Only Have Routing Tools</h3>
+    <div class="tool-card">
+      <p>If the master orchestrator has access to <code>codewiki_read_contents</code> or <code>codewiki_search_wiki</code>, it will try to answer questions directly instead of delegating. Restrict the master to:</p>
+      <ul>
+        <li><code>agent</code> — for spawning subagents</li>
+        <li><code>codewiki_list_topics</code> — for availability checks + pre-fetching</li>
+        <li><code>codewiki_request_indexing</code> — for handling NOT_INDEXED directly</li>
+      </ul>
+    </div>
+
+    <h3>3. Pre-Fetch Context to Avoid Round-Trips</h3>
+    <div class="tool-card">
+      <p>Without pre-fetching, the flow is: Master delegates → Subagent calls <code>codewiki_list_topics</code> → Subagent does real work. With pre-fetching, the master calls <code>codewiki_list_topics</code> once and passes the result in the delegation prompt, saving a tool call round-trip inside the subagent.</p>
+    </div>
+
+    <h3>4. <code>user-invokable: false</code> Prevents Bypass</h3>
+    <div class="tool-card">
+      <p>Without this flag, users can type <code>@codewiki-researcher</code> directly, bypassing the orchestrator's routing and pre-fetch logic. Setting <code>user-invokable: false</code> on all subagents ensures the master is the only entry point.</p>
+    </div>
+
+    <h3>5. Custom Agents Only Work in VS Code Chat Panel</h3>
+    <div class="tool-card">
+      <p>VS Code custom agents (<code>.agent.md</code> files) are activated via <code>@agentname</code> in the <strong>Chat panel</strong> (Ctrl+Shift+I). They do NOT work in:</p>
+      <ul>
+        <li>Inline Chat (Ctrl+I)</li>
+        <li>Terminal inline suggestions</li>
+        <li>Regular Copilot conversation without the <code>@</code> prefix</li>
+      </ul>
+    </div>
+
+    <h3>6. The <code>agent</code> Tool Name</h3>
+    <div class="tool-card">
+      <p>When listing tools in the YAML frontmatter, the tool for spawning subagents is simply <code>agent</code> — not <code>agent/runSubagent</code> or <code>runSubagent</code>. The <code>agents:</code> property lists which subagents this orchestrator can spawn.</p>
+      <pre><code># Correct ✓
+tools:
+  - 'agent'
+agents:
+  - 'CodeWiki Researcher'
+
+# Wrong ✗
+tools:
+  - 'agent/runSubagent'</code></pre>
+    </div>
+
+    <!-- ─── Generic Agent Integration ─── -->
+    <h2 id="generic-integration">Generic Agent Integration</h2>
+    <p>If you're building agents outside VS Code (Claude Desktop, custom Python, LangChain, etc.), use these system prompts and configurations.</p>
+
+    <h3>Skill Definition</h3>
     <p>A <strong>skill</strong> tells your agent <em>when</em> and <em>how</em> to use CodeWiki MCP tools. Use this as a reusable building block in any agent framework.</p>
 
     <div class="tool-card">
@@ -101,276 +372,66 @@ Triggers:
   - User asks about a repository's architecture or design
   - User needs to understand code in a specific repo
   - User asks "explain [feature] in [repo]"
-  - User asks to find where something is implemented
 
 Available Tools:
-  1. codewiki_read_structure    — Get the table of contents (JSON, cheapest)
+  1. codewiki_read_structure    — Table of contents (JSON, cheapest)
   2. codewiki_list_topics  — Titles + short previews (lightweight)
   3. codewiki_read_contents     — Read paginated or section-specific docs
   4. codewiki_search_wiki       — Ask Gemini a question about the repo
   5. codewiki_request_indexing  — Submit unindexed repos for indexing
 
 Recommended Workflow (token-efficient):
-  1. Start with codewiki_read_structure — returns structured JSON TOC
-     (smallest response, ~500-1000 tokens)
-  2. If you need more context, call codewiki_list_topics for
-     titles with preview snippets (~2000-3000 tokens)
+  1. Start with codewiki_read_structure (~500-1000 tokens)
+  2. Call codewiki_list_topics for titles + previews (~2000-3000 tokens)
   3. Use codewiki_read_contents with section_title for targeted reads
-     (only retrieves the section you need)
-  4. Use codewiki_read_contents with offset/limit to paginate through
-     remaining sections as needed
-  5. Use codewiki_search_wiki only for specific questions that can't
-     be answered by reading sections directly
-
-Anti-patterns to avoid:
-  - Don't call codewiki_list_topics AND codewiki_read_contents
-    without section_title — they return overlapping data
-  - Don't skip codewiki_read_structure — it's the cheapest way to
-    discover what sections exist
-  - Don't call codewiki_search_wiki for broad overview questions —
-    section reads are faster and more predictable
-
-Input Format:
-  - repo_url: "owner/repo" or full URL
-  - section_title: partial or full title (optional)
-  - query: natural language question (for search only)
-  - offset: section index for pagination (default 0)
-  - limit: max sections per page (default 5)</code></pre>
+  4. Use codewiki_search_wiki only for specific questions</code></pre>
     </div>
 
-    <!-- System Prompt Templates -->
-    <h2>System Prompt Templates</h2>
-    <p>Below are ready-to-use system prompts for different agent personas. Copy, adapt, and wire into your LLM agent.</p>
+    <h3>System Prompt Template</h3>
+    <p>A general-purpose system prompt you can adapt for any LLM agent framework:</p>
 
-    <!-- Template 1: General Codebase Research Agent -->
     <div class="tool-card">
-      <h3>1. Codebase Research Agent</h3>
-      <p>A general-purpose agent that explores and explains any open-source repository.</p>
+      <h3>Codebase Research Agent</h3>
       <pre><code>You are a codebase research agent with access to Google CodeWiki
 via MCP tools. Your job is to help users understand open-source
 repositories by exploring their documentation and answering
 technical questions.
 
 ## Tools Available (ordered by token efficiency)
-- codewiki_read_structure(repo_url) — Get JSON table of contents (cheapest)
-- codewiki_list_topics(repo_url) — Get titles + short previews
+- codewiki_read_structure(repo_url) — JSON table of contents (cheapest)
+- codewiki_list_topics(repo_url) — Titles + short previews
 - codewiki_read_contents(repo_url, section_title?, offset?, limit?) — Read docs
 - codewiki_search_wiki(repo_url, query) — Ask Gemini about the repo
-- codewiki_request_indexing(repo_url) — Submit unindexed repos for indexing
+- codewiki_request_indexing(repo_url) — Submit unindexed repos
 
 ## Workflow
-When a user asks about a repository:
-1. Call codewiki_read_structure to get the section list (cheapest).
-2. If you need more context on what sections cover, call
-   codewiki_list_topics (titles + 200-char previews).
-3. Based on the user's question, either:
-   a. Call codewiki_read_contents with the relevant section_title, or
-   b. Call codewiki_read_contents with offset/limit to page through.
-4. Use codewiki_search_wiki only for specific technical questions
-   that sections don't answer.
-5. Synthesize the results into a clear, accurate answer.
-6. If the first answer is incomplete, make additional targeted calls.
+1. codewiki_read_structure → discover sections (cheapest)
+2. codewiki_list_topics → titles + 200-char previews
+3. codewiki_read_contents(section_title=...) → targeted reads
+4. codewiki_search_wiki → specific implementation questions
+5. Synthesize into a clear, cited answer
 
 ## Rules
-- Always cite which section or tool response your answer is based on.
-- If CodeWiki has no content for a repo, tell the user honestly.
-- If a tool returns NOT_INDEXED, call codewiki_request_indexing to submit,
-  then inform the user the repo is not yet indexed.
-- Use owner/repo shorthand (e.g., "microsoft/vscode") for repo_url.
-- Never fabricate information — only report what tools return.
-- For architecture questions, prefer codewiki_read_contents with section.
-- For specific implementation questions, prefer codewiki_search_wiki.
-- Avoid calling codewiki_list_topics AND codewiki_read_contents without
-  a section_title in the same conversation — they overlap.</code></pre>
+- Always cite which section your answer is based on
+- If NOT_INDEXED, call codewiki_request_indexing and inform the user
+- Use owner/repo shorthand (e.g., "microsoft/vscode")
+- Never fabricate information — only report what tools return</code></pre>
     </div>
-
-    <!-- Template 2: Code Review Assistant -->
-    <div class="tool-card">
-      <h3>2. Code Review Assistant</h3>
-      <p>An agent that helps developers understand unfamiliar codebases during code review.</p>
-      <pre><code>You are a code review assistant. When a developer is reviewing code
-from an open-source dependency or upstream project, you help them
-understand the codebase context using Google CodeWiki.
-
-## Tools Available
-- codewiki_list_topics(repo_url)
-- codewiki_read_structure(repo_url)
-- codewiki_read_contents(repo_url, section_title?)
-- codewiki_search_wiki(repo_url, query)
-- codewiki_request_indexing(repo_url)
-
-## Workflow
-When a developer asks about code they're reviewing:
-1. Identify the repository from the context or ask.
-2. Call codewiki_read_structure to map the project layout.
-3. Use codewiki_search_wiki to answer specific questions like:
-   - "What does this module do?"
-   - "How is this function used?"
-   - "What's the design pattern here?"
-4. Use codewiki_read_contents for broader architectural context.
-5. Present findings as concise review notes.
-
-## Tone
-- Be concise and technical.
-- Focus on what's relevant to the review.
-- Flag potential concerns based on architectural understanding.
-- Link findings back to the specific code under review.</code></pre>
-    </div>
-
-    <!-- Template 3: Architecture Explorer -->
-    <div class="tool-card">
-      <h3>3. Architecture Explorer</h3>
-      <p>An agent specialized in mapping and explaining project architectures.</p>
-      <pre><code>You are an architecture exploration agent. Your specialty is
-mapping out how open-source projects are structured, what patterns
-they use, and how their components interact.
-
-## Tools Available
-- codewiki_list_topics(repo_url)
-- codewiki_read_structure(repo_url)
-- codewiki_read_contents(repo_url, section_title?)
-- codewiki_search_wiki(repo_url, query)
-- codewiki_request_indexing(repo_url)
-
-## Workflow
-When asked to explain a project's architecture:
-1. Call codewiki_list_topics for the high-level overview.
-2. Call codewiki_read_structure to get all sections.
-3. Read architecture-related sections via codewiki_read_contents:
-   - Look for sections with titles containing "architecture",
-     "design", "overview", "structure", or "components".
-4. For specific component questions, use codewiki_search_wiki.
-5. Produce a structured architecture summary:
-   - Key components and their roles
-   - Data flow between components
-   - Design patterns used
-   - Entry points and extension mechanisms
-
-## Output Format
-Structure your response as:
-- **Overview**: One paragraph summary
-- **Key Components**: Bullet list with descriptions
-- **Data Flow**: How data moves through the system
-- **Patterns**: Design patterns and architectural decisions
-- **Extension Points**: How to extend or customize</code></pre>
-    </div>
-
-    <!-- Template 4: Multi-Repo Comparison Agent -->
-    <div class="tool-card">
-      <h3>4. Multi-Repo Comparison Agent</h3>
-      <p>An agent that compares multiple repositories side-by-side.</p>
-      <pre><code>You are a technical comparison agent. You help developers evaluate
-and compare open-source projects by researching their documentation
-via Google CodeWiki.
-
-## Tools Available
-- codewiki_list_topics(repo_url)
-- codewiki_read_structure(repo_url)
-- codewiki_read_contents(repo_url, section_title?)
-- codewiki_search_wiki(repo_url, query)
-- codewiki_request_indexing(repo_url)
-
-## Workflow
-When asked to compare repositories:
-1. For each repo, call codewiki_list_topics for overview.
-2. For each repo, call codewiki_read_structure to map sections.
-3. Identify comparable dimensions (architecture, features,
-   patterns, dependencies, testing approach).
-4. Use codewiki_read_contents and codewiki_search_wiki to gather
-   details on each dimension for each repo.
-5. Present a structured comparison.
-
-## Output Format
-Use a comparison table where possible:
-| Aspect       | Repo A         | Repo B         |
-|--------------|----------------|----------------|
-| Architecture | ...            | ...            |
-| Key Pattern  | ...            | ...            |
-
-Follow with detailed analysis of trade-offs.</code></pre>
-    </div>
-
-    <!-- Implementation Example -->
-    <h2>Implementation Example</h2>
-    <p>Here's a practical example showing how an agent uses the tools in sequence to answer a real question.</p>
-
-    <div class="tool-card">
-      <h3>Example: "How does VS Code handle extension activation?"</h3>
-      <pre><code># Step 1: Agent discovers topics
-→ codewiki_list_topics(repo_url="microsoft/vscode")
-← Returns: overview of VS Code documentation topics
-
-# Step 2: Agent gets structure to find relevant section
-→ codewiki_read_structure(repo_url="microsoft/vscode")
-← Returns: JSON array of section titles
-
-# Step 3: Agent reads the relevant section
-→ codewiki_read_contents(
-    repo_url="microsoft/vscode",
-    section_title="Extension Activation"
-  )
-← Returns: detailed documentation about activation events
-
-# Step 4: Agent asks a follow-up question for specifics
-→ codewiki_search_wiki(
-    repo_url="microsoft/vscode",
-    query="How does the extension host process manage
-           activation events and lazy loading?"
-  )
-← Returns: Gemini-powered answer with implementation details
-
-# Step 5: Agent synthesizes all results into a clear answer</code></pre>
-    </div>
-
-    <!-- Best Practices -->
-    <h2>Best Practices</h2>
-    <table>
-      <thead><tr><th>Practice</th><th>Why</th></tr></thead>
-      <tbody>
-        <tr>
-          <td><strong>Start with topics, then narrow</strong></td>
-          <td>Avoids wasting calls on repos where CodeWiki has limited coverage</td>
-        </tr>
-        <tr>
-          <td><strong>Use structure before contents</strong></td>
-          <td>Lets the agent pick the right section instead of reading everything</td>
-        </tr>
-        <tr>
-          <td><strong>Prefer section reads over search for broad topics</strong></td>
-          <td>Section content is deterministic and cached; search uses Gemini chat which is slower</td>
-        </tr>
-        <tr>
-          <td><strong>Use search for specific implementation questions</strong></td>
-          <td>Gemini chat excels at pointed questions about code behavior</td>
-        </tr>
-        <tr>
-          <td><strong>Handle errors gracefully</strong></td>
-          <td>Check <code>status</code> field; repos may not be indexed or responses can time out</td>
-        </tr>
-        <tr>
-          <td><strong>Use <code>owner/repo</code> shorthand</strong></td>
-          <td>Cleaner and always works; full URLs are also accepted</td>
-        </tr>
-        <tr>
-          <td><strong>Cache-aware timing</strong></td>
-          <td>First call may take 5-15s (Playwright render); subsequent calls within 5 min are cached</td>
-        </tr>
-      </tbody>
-    </table>
 
     <!-- MCP Client Config -->
-    <h2>MCP Client Configuration</h2>
-    <p>To connect your agent to CodeWiki MCP, add this server configuration to your MCP client:</p>
+    <h2 id="mcp-config">MCP Client Configuration</h2>
+    <p>Connect your agent to CodeWiki MCP by adding the server to your MCP client config:</p>
 
     <h3>VS Code (<code>.vscode/mcp.json</code>)</h3>
     <pre><code>{
   "servers": {
-    "codewikiMcp": {
+    "codewiki-mcp": {
       "type": "stdio",
       "command": "codewiki-mcp"
     }
   }
 }</code></pre>
+    <p><strong>Important:</strong> The server name (<code>codewiki-mcp</code>) must match the tool prefix used in your <code>.agent.md</code> files.</p>
 
     <h3>Claude Desktop</h3>
     <pre><code>{
@@ -436,9 +497,45 @@ if response["status"] == "error":
         # Log and inform user of unexpected error
         pass</code></pre>
 
-    <!-- Token Efficiency & Model Selection Guide -->
+    <!-- Best Practices -->
+    <h2>Best Practices</h2>
+    <table>
+      <thead><tr><th>Practice</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Start with topics, then narrow</strong></td>
+          <td>Avoids wasting calls on repos where CodeWiki has limited coverage</td>
+        </tr>
+        <tr>
+          <td><strong>Use structure before contents</strong></td>
+          <td>Lets the agent pick the right section instead of reading everything</td>
+        </tr>
+        <tr>
+          <td><strong>Prefer section reads over search for broad topics</strong></td>
+          <td>Section content is deterministic and cached; search uses Gemini chat which is slower</td>
+        </tr>
+        <tr>
+          <td><strong>Use search for specific implementation questions</strong></td>
+          <td>Gemini chat excels at pointed questions about code behavior</td>
+        </tr>
+        <tr>
+          <td><strong>Handle errors gracefully</strong></td>
+          <td>Check <code>status</code> field; repos may not be indexed or responses can time out</td>
+        </tr>
+        <tr>
+          <td><strong>Use <code>owner/repo</code> shorthand</strong></td>
+          <td>Cleaner and always works; full URLs are also accepted</td>
+        </tr>
+        <tr>
+          <td><strong>Cache-aware timing</strong></td>
+          <td>First call may take 5-15s (Playwright render); subsequent calls within 5 min are cached</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Token Efficiency -->
     <h2>Token Efficiency Guide</h2>
-    <p>CodeWiki MCP tools vary dramatically in how many tokens they return. Understanding this helps you write efficient agents and save on LLM costs.</p>
+    <p>CodeWiki MCP tools vary dramatically in token output. Understanding this helps you write efficient agents.</p>
 
     <h3>Tool Token Cost Comparison</h3>
     <table>
@@ -461,8 +558,8 @@ if response["status"] == "error":
       <li>Reserve <code>codewiki_search_wiki</code> for questions that sections can't answer</li>
     </ol>
 
-    <h2>Model Selection & Credit Optimization</h2>
-    <p>When using GitHub Copilot, your model choice significantly affects credit consumption. Here's how to optimize for CodeWiki-heavy workflows.</p>
+    <h2>Model Selection &amp; Credit Optimization</h2>
+    <p>When using GitHub Copilot, your model choice significantly affects credit consumption.</p>
 
     <h3>GitHub Copilot Model Multipliers</h3>
     <table>
@@ -477,25 +574,6 @@ if response["status"] == "error":
       </tbody>
     </table>
 
-    <h3>Recommended Strategy</h3>
-    <div class="tool-card">
-      <h3>Multi-Model Workflow</h3>
-      <pre><code># Phase 1: Discovery (use free/cheap model)
-# → GPT-4.1 or Gemini Flash
-codewiki_read_structure("owner/repo")       # ~800 tokens
-codewiki_list_topics("owner/repo")     # ~3000 tokens
-
-# Phase 2: Targeted reading (use free/cheap model)
-# → GPT-4.1 or Gemini Flash
-codewiki_read_contents("owner/repo",
-    section_title="Architecture")
-
-# Phase 3: Deep analysis (use capable model)
-# → Claude Sonnet 4 or GPT-4.1
-codewiki_search_wiki("owner/repo",
-    query="How does the event loop handle...")</code></pre>
-    </div>
-
     <h3>Credit Budget Tips</h3>
     <table>
       <thead><tr><th>Tip</th><th>Savings</th></tr></thead>
@@ -508,6 +586,8 @@ codewiki_search_wiki("owner/repo",
         <tr><td>Switch to Opus/Sonnet only for synthesis and reasoning steps</td><td>Use free models for data gathering</td></tr>
       </tbody>
     </table>
+
+    <p style="margin-top: 2rem;">See also: <a href="testing-guide.html"><strong>Agent Testing Guide</strong></a> — sample prompts and validation checklists for testing the VS Code custom agents.</p>
   </div>
 </main>
 

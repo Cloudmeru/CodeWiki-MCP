@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent Testing Guide — CodeWiki MCP Server</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+</head>
+<body>
+
+<button class="burger" aria-label="Toggle navigation">
+  <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h16M3 11h16M3 16h16"/></svg>
+</button>
+<div class="overlay"></div>
+
+<aside class="sidebar">
+  <div class="sidebar-header">
+    <div class="logo">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6c63ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8M8 11h6"/></svg>
+      CodeWiki MCP
+    </div>
+    <span class="version">v1.1.0</span>
+  </div>
+  <nav>
+    <div class="nav-section">Overview</div>
+    <a href="index.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Home
+    </a>
+    <a href="release-notes.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5h18M3 12h18M3 19h18"/></svg>
+      Release Notes
+    </a>
+    <div class="nav-section">Getting Started</div>
+    <a href="installation.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Installation
+    </a>
+    <a href="setup.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Editor Setup
+    </a>
+    <div class="nav-section">Reference</div>
+    <a href="tools.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+      Tools
+    </a>
+    <a href="configuration.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Configuration
+    </a>
+    <a href="architecture.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+      Architecture
+    </a>
+    <div class="nav-section">Guides</div>
+    <a href="agents.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.58-3.25 3.93L12 22l-.75-12.07A4.001 4.001 0 0 1 12 2z"/><path d="M9 6.5C7.33 7.83 4 10.6 4 13a8 8 0 0 0 16 0c0-2.4-3.33-5.17-5-6.5"/></svg>
+      Agentic AI Guide
+    </a>
+    <a href="skills.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      Skills &amp; Client Setup
+    </a>
+    <a href="testing-guide.html" class="active">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      Agent Testing Guide
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <a href="https://github.com/Cloudmeru/CodeWiki-MCP" target="_blank">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+      GitHub
+    </a>
+    &nbsp;&middot;&nbsp;
+    <a href="https://pypi.org/project/codewiki-mcp/" target="_blank">PyPI</a>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="content">
+    <h1 class="page-title">Agent Testing Guide</h1>
+    <p class="page-subtitle">Sample prompts and validation checklists for testing the VS Code custom agents.</p>
+
+    <!-- Prerequisites -->
+    <h2>Prerequisites</h2>
+    <div class="tool-card" style="border-left: 4px solid #f59e0b;">
+      <h3>Before You Test</h3>
+      <ol>
+        <li>The <code>codewiki-mcp</code> MCP server must be running and configured in <code>.vscode/mcp.json</code> (included in this repo).</li>
+        <li>All 5 <code>.agent.md</code> files must be in <code>.github/agents/</code>.</li>
+        <li>Test in the <strong>VS Code Chat panel</strong> (<kbd>Ctrl+Shift+I</kbd>), not inline chat.</li>
+        <li>Custom agents only activate via <code>@codewiki</code> in the Chat panel.</li>
+      </ol>
+    </div>
+
+    <!-- Quick Reference -->
+    <h2>Routing Quick Reference</h2>
+    <table>
+      <thead><tr><th>User Intent</th><th>Subagent</th><th>Signal Words</th></tr></thead>
+      <tbody>
+        <tr><td>General exploration</td><td>CodeWiki Researcher</td><td>"what is", "explain", "tell me about", "overview"</td></tr>
+        <tr><td>Code analysis</td><td>CodeWiki Code Review</td><td>"review", "analyse", "module", "function", "code"</td></tr>
+        <tr><td>System design</td><td>CodeWiki Architecture Explorer</td><td>"architecture", "design", "structure", "hierarchy"</td></tr>
+        <tr><td>Multi-repo comparison</td><td>CodeWiki Comparison</td><td>"compare", "vs", "difference", "or"</td></tr>
+        <tr><td>Unindexed repo</td><td><em>Master handles directly</em></td><td>Any repo returning NOT_INDEXED</td></tr>
+      </tbody>
+    </table>
+
+    <!-- ═══ Scenario 1: Researcher ═══ -->
+    <h2>1. CodeWiki Researcher (General Exploration)</h2>
+    <p><strong>Routing trigger:</strong> General "what is", "explain", "tell me about" questions.</p>
+
+    <h3>Sample Prompts</h3>
+    <div class="tool-card">
+      <pre><code>@codewiki What is facebook/prophet and what are its main features?</code></pre>
+      <pre><code>@codewiki Explain the key concepts behind pallets/flask</code></pre>
+      <pre><code>@codewiki What topics does CodeWiki have for microsoft/vscode?</code></pre>
+    </div>
+
+    <h3>Expected Behaviour</h3>
+    <table>
+      <thead><tr><th>Step</th><th>What Should Happen</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Master spawns <strong>CodeWiki Researcher</strong> via the <code>agent</code> tool</td></tr>
+        <tr><td>2</td><td>Researcher calls <code>codewiki_list_topics</code> to discover available wiki sections</td></tr>
+        <tr><td>3</td><td>Researcher calls <code>codewiki_read_structure</code> and/or <code>codewiki_read_contents</code></td></tr>
+        <tr><td>4</td><td>Researcher synthesises a summary from CodeWiki content</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Validation Checklist</h3>
+    <ul>
+      <li>Master does <strong>not</strong> answer from its own knowledge</li>
+      <li>Master uses the <code>agent</code> tool (not direct tool calls to read/search)</li>
+      <li>Researcher cites CodeWiki sections in its answer</li>
+      <li>Response contains real documentation content, not generic descriptions</li>
+    </ul>
+
+    <!-- ═══ Scenario 2: Code Review ═══ -->
+    <h2>2. CodeWiki Code Review (Module / Function Analysis)</h2>
+    <p><strong>Routing trigger:</strong> "review", "analyse", "what does module X do", code-level questions.</p>
+
+    <h3>Sample Prompts</h3>
+    <div class="tool-card">
+      <pre><code>@codewiki Review the forecaster module in facebook/prophet — what does it do?</code></pre>
+      <pre><code>@codewiki What code patterns are used in the routing module of pallets/flask?</code></pre>
+      <pre><code>@codewiki Analyse the error handling approach in fastapi/fastapi</code></pre>
+    </div>
+
+    <h3>Expected Behaviour</h3>
+    <table>
+      <thead><tr><th>Step</th><th>What Should Happen</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Master spawns <strong>CodeWiki Code Review</strong> via the <code>agent</code> tool</td></tr>
+        <tr><td>2</td><td>Reviewer calls <code>codewiki_search_wiki</code> to find relevant code documentation</td></tr>
+        <tr><td>3</td><td>Reviewer calls <code>codewiki_read_contents</code> for detailed section content</td></tr>
+        <tr><td>4</td><td>Reviewer provides code-level analysis with citations</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Validation Checklist</h3>
+    <ul>
+      <li>Master delegates to <strong>CodeWiki Code Review</strong>, not Researcher</li>
+      <li>Reviewer focuses on code structure, patterns, and implementation details</li>
+      <li>Response references specific modules, classes, or functions</li>
+      <li>No hallucinated code — all content sourced from CodeWiki</li>
+    </ul>
+
+    <!-- ═══ Scenario 3: Architecture ═══ -->
+    <h2>3. CodeWiki Architecture Explorer (System Design)</h2>
+    <p><strong>Routing trigger:</strong> "architecture", "design", "how is X structured", "component hierarchy".</p>
+
+    <h3>Sample Prompts</h3>
+    <div class="tool-card">
+      <pre><code>@codewiki Explain the overall architecture of facebook/react</code></pre>
+      <pre><code>@codewiki How is the plugin system architected in vitejs/vite?</code></pre>
+      <pre><code>@codewiki Describe the component hierarchy and data flow in vuejs/core</code></pre>
+    </div>
+
+    <h3>Expected Behaviour</h3>
+    <table>
+      <thead><tr><th>Step</th><th>What Should Happen</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Master spawns <strong>CodeWiki Architecture Explorer</strong> via the <code>agent</code> tool</td></tr>
+        <tr><td>2</td><td>Explorer calls <code>codewiki_read_structure</code> to map the documentation tree</td></tr>
+        <tr><td>3</td><td>Explorer calls <code>codewiki_read_contents</code> for architecture-related sections</td></tr>
+        <tr><td>4</td><td>Explorer produces a structured architecture overview</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Validation Checklist</h3>
+    <ul>
+      <li>Master delegates to <strong>CodeWiki Architecture Explorer</strong></li>
+      <li>Response covers high-level design (layers, components, data flow)</li>
+      <li>Includes or references structural breakdowns from CodeWiki</li>
+      <li>Does not devolve into code-level details (that's the Reviewer's job)</li>
+    </ul>
+
+    <!-- ═══ Scenario 4: Comparison ═══ -->
+    <h2>4. CodeWiki Comparison (Multi-Repo)</h2>
+    <p><strong>Routing trigger:</strong> "compare", "vs", "difference between", "X or Y".</p>
+
+    <h3>Sample Prompts</h3>
+    <div class="tool-card">
+      <pre><code>@codewiki Compare fastapi/fastapi vs pallets/flask — architecture, performance, and developer experience</code></pre>
+      <pre><code>@codewiki Compare facebook/react vs vuejs/core in terms of rendering strategy</code></pre>
+      <pre><code>@codewiki What are the differences between expressjs/express and koajs/koa?</code></pre>
+    </div>
+
+    <h3>Expected Behaviour</h3>
+    <table>
+      <thead><tr><th>Step</th><th>What Should Happen</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Master spawns <strong>CodeWiki Comparison</strong> via the <code>agent</code> tool</td></tr>
+        <tr><td>2</td><td>Comparison agent calls CodeWiki tools for <strong>each</strong> repo independently</td></tr>
+        <tr><td>3</td><td>Agent builds a side-by-side analysis from real documentation</td></tr>
+        <tr><td>4</td><td>Agent produces a structured comparison table or narrative</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Validation Checklist</h3>
+    <ul>
+      <li>Master delegates to <strong>CodeWiki Comparison</strong>, not Researcher</li>
+      <li>Agent fetches documentation from <strong>both</strong> repos (not just one)</li>
+      <li>Comparison is grounded in CodeWiki content, not generic knowledge</li>
+      <li>Response includes a structured comparison (table, bullet list, or sections)</li>
+    </ul>
+
+    <!-- ═══ Scenario 5: Indexing ═══ -->
+    <h2>5. Request Indexing (Unindexed Repo)</h2>
+    <p><strong>Routing trigger:</strong> Repo that returns <code>NOT_INDEXED</code> from <code>codewiki_list_topics</code>. The master handles this directly — no subagent needed.</p>
+
+    <h3>Sample Prompts</h3>
+    <div class="tool-card">
+      <pre><code>@codewiki Check if Snowflake-Labs/agent-world-model is available on CodeWiki</code></pre>
+      <pre><code>@codewiki What does CodeWiki have for some-org/obscure-repo?</code></pre>
+    </div>
+
+    <h3>Expected Behaviour</h3>
+    <table>
+      <thead><tr><th>Step</th><th>What Should Happen</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Master calls <code>codewiki_list_topics</code> directly (it has this tool)</td></tr>
+        <tr><td>2</td><td>Tool returns <code>NOT_INDEXED</code> error</td></tr>
+        <tr><td>3</td><td>Master calls <code>codewiki_request_indexing</code> to submit the repo</td></tr>
+        <tr><td>4</td><td>Master reports the indexing request to the user</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Validation Checklist</h3>
+    <ul>
+      <li>Master handles this <strong>directly</strong> (no subagent needed)</li>
+      <li><code>codewiki_list_topics</code> is called first to check availability</li>
+      <li><code>codewiki_request_indexing</code> is called after NOT_INDEXED detection</li>
+      <li>User is informed the repo has been submitted for indexing</li>
+    </ul>
+
+    <!-- ═══ Full Workflow Scenario ═══ -->
+    <h2 id="full-workflow">Full Workflow Scenario</h2>
+    <p>This single prompt is designed to trigger all 5 workflow steps (Discover → Navigate → Read → Search → Synthesize) of the <strong>Researcher</strong> subagent.</p>
+
+    <div class="tool-card">
+      <h3>Multi-Step Scenario Prompt</h3>
+      <pre><code>@codewiki I want a deep technical explanation of the React Compiler's
+compilation pipeline.
+
+Specifically:
+1. First, check what topics Google CodeWiki has for facebook/react.
+2. Then look at the full table of contents to find sections about
+   the compiler.
+3. Read the section on "React Compiler Internals" to understand the
+   multi-stage compilation pipeline, the IRs (HIR and ReactiveFunction),
+   and the key optimization passes.
+4. Search for "How does the React Compiler handle memoization and
+   reactive scopes?" to get implementation-level details.
+5. Combine everything into a single technical summary that covers:
+   - The overall compilation pipeline (AST → HIR → ReactiveFunction → codegen)
+   - The key intermediate representations and their purpose
+   - How reactive scopes are inferred and merged
+   - How the compiler replaces manual useMemo/useCallback
+   - Cite which CodeWiki sections your answer comes from</code></pre>
+    </div>
+
+    <h3>Expected Tool Calls</h3>
+    <table>
+      <thead><tr><th>Step</th><th>Phase</th><th>Tool Call</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><strong>Discover</strong></td><td><code>codewiki_list_topics("facebook/react")</code></td><td>Verify wiki exists, see available topics</td></tr>
+        <tr><td>2</td><td><strong>Navigate</strong></td><td><code>codewiki_read_structure("facebook/react")</code></td><td>Get full ToC with section hierarchy</td></tr>
+        <tr><td>3</td><td><strong>Read</strong></td><td><code>codewiki_read_contents("facebook/react", "React Compiler Internals")</code></td><td>Fetch detailed compiler pipeline docs</td></tr>
+        <tr><td>4</td><td><strong>Search</strong></td><td><code>codewiki_search_wiki("facebook/react", "How does the React Compiler handle memoization?")</code></td><td>Get Gemini-powered implementation details</td></tr>
+        <tr><td>5</td><td><strong>Synthesize</strong></td><td><em>(no tool call — agent combines results)</em></td><td>Produce cited summary from steps 1-4</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Full Workflow Validation</h3>
+    <ul>
+      <li><strong>Step 1:</strong> Returns <code>status: "ok"</code> with topic list (expect ~26 sections)</li>
+      <li><strong>Step 2:</strong> Returns <code>status: "ok"</code> with hierarchical section structure</li>
+      <li><strong>Step 3:</strong> Returns <code>status: "ok"</code> with detailed content about HIR, ReactiveFunction, compilation passes</li>
+      <li><strong>Step 4:</strong> Returns <code>status: "ok"</code> OR <code>RETRY_EXHAUSTED</code> (upstream timeout is a known CodeWiki issue)</li>
+      <li><strong>Step 5:</strong> Agent produces a coherent summary citing specific CodeWiki sections</li>
+      <li>All responses include <code>content_hash</code> and <code>idempotency_key</code></li>
+      <li>Subsequent identical calls return in &lt;10ms (cache hit)</li>
+      <li>Agent does NOT call the same tool &gt;2 times for the same repo</li>
+    </ul>
+
+    <!-- Alternative Repos -->
+    <h2>Alternative Repos for Testing</h2>
+    <p>If a repo is too large or slow during testing, try these:</p>
+    <table>
+      <thead><tr><th>Repo</th><th>Size</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><code>anthropics/anthropic-sdk-python</code></td><td>Small</td><td>Fast wiki generation, good for quick tests</td></tr>
+        <tr><td><code>fastapi/fastapi</code></td><td>Medium</td><td>Well-indexed, good for architecture + review tests</td></tr>
+        <tr><td><code>facebook/prophet</code></td><td>Medium</td><td>Good for researcher + review tests</td></tr>
+        <tr><td><code>microsoft/vscode-copilot-chat</code></td><td>Medium</td><td>Microsoft tooling</td></tr>
+      </tbody>
+    </table>
+
+    <p style="margin-top: 2rem;">See also: <a href="agents.html"><strong>Agentic AI Guide</strong></a> — full agent definitions, architecture, and lessons learned.</p>
+  </div>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
