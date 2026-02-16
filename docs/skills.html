@@ -343,10 +343,11 @@ repositories by exploring their documentation.
 
     <h3>Key design choices</h3>
     <ul>
+      <li><strong>Pure router master</strong> — The master has only the <code>agent</code> tool (zero MCP tools). This forces delegation and saves tokens by eliminating redundant availability checks.</li>
       <li><strong><code>user-invokable: false</code></strong> — Subagents are hidden from the picker; only the master is user-facing.</li>
       <li><strong><code>'read'</code> tool</strong> — Required for on-demand skill loading via SKILL.md files.</li>
+      <li><strong>Subagents handle errors</strong> — Each subagent has all 5 MCP tools and handles NOT_INDEXED errors independently. No pre-checking by the master needed.</li>
       <li><strong>Explicit tool names</strong> — Use <code>'codewiki-mcp/codewiki_list_topics'</code> format (must match the server name in <code>.vscode/mcp.json</code>).</li>
-      <li><strong>Stateless subagents</strong> — The master does NOT pass pre-fetched data to subagents. Each subagent fetches its own data independently.</li>
     </ul>
 
     <h3>Use it in chat</h3>

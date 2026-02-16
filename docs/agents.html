@@ -101,13 +101,12 @@
     <div class="tool-card" style="padding: 1.5rem;">
       <pre class="mermaid">
 flowchart TD
-    User(["👤 @codewiki"]) --> Master["🎯 CodeWiki Master\n(orchestrator)"]
+    User(["👤 @codewiki"]) --> Master["🎯 CodeWiki Master\n(pure router)"]
 
     Master -->|"general questions"| Researcher["🔍 Researcher\n(general exploration)"]
     Master -->|"code-level questions"| Reviewer["📝 Code Review\n(module/function analysis)"]
     Master -->|"design questions"| Architect["🏗️ Architecture Explorer\n(system design)"]
     Master -->|"multi-repo questions"| Comparison["⚖️ Comparison\n(side-by-side analysis)"]
-    Master -->|"NOT_INDEXED"| Indexing["📥 Request Indexing\n(handled directly)"]
 
     Skill["📚 SKILL.md\n(domain knowledge)"] -.->|"read on-demand"| Researcher
     Skill -.->|"read on-demand"| Reviewer
@@ -119,13 +118,12 @@ flowchart TD
     style Reviewer fill:#1e293b,stroke:#6c63ff,color:#e2e8f0
     style Architect fill:#1e293b,stroke:#6c63ff,color:#e2e8f0
     style Comparison fill:#1e293b,stroke:#6c63ff,color:#e2e8f0
-    style Indexing fill:#1e293b,stroke:#f59e0b,color:#e2e8f0
     style Skill fill:#1e293b,stroke:#10b981,color:#e2e8f0
     style User fill:#0f172a,stroke:#6c63ff,color:#e2e8f0
       </pre>
       <p style="margin-top: 1rem; font-size: 0.85rem; color: #94a3b8;">
-        <strong>Master tools:</strong> <code>codewiki_list_topics</code>, <code>codewiki_request_indexing</code>, <code>agent</code><br>
-        <strong>Subagent tools:</strong> <code>read</code> + all 5 <code>codewiki_*</code> tools<br>
+        <strong>Master tool:</strong> <code>agent</code> only (pure router — zero MCP tools)<br>
+        <strong>Subagent tools:</strong> <code>read</code> + all 5 <code>codewiki_*</code> tools (including NOT_INDEXED handling)<br>
         <strong>Skills:</strong> <code>.github/skills/codewiki-usage/SKILL.md</code> (loaded on-demand via <code>read</code>)
       </p>
     </div>
@@ -135,12 +133,12 @@ flowchart TD
       <thead><tr><th>Decision</th><th>Rationale</th></tr></thead>
       <tbody>
         <tr>
-          <td><strong>Master only gets 2 MCP tools</strong></td>
-          <td><code>codewiki_list_topics</code> (for availability checks) and <code>codewiki_request_indexing</code> (for unindexed repos). All read/search tools belong to subagents only — this forces delegation.</td>
+          <td><strong>Master is a pure router (zero MCP tools)</strong></td>
+          <td>The master only has the <code>agent</code> tool for spawning subagents. No <code>codewiki_*</code> tools at all — this forces delegation and saves tokens by eliminating the redundant availability check.</td>
         </tr>
         <tr>
-          <td><strong>Stateless subagents</strong></td>
-          <td>Subagents fetch their own data independently using their own tools. The master only uses <code>codewiki_list_topics</code> for NOT_INDEXED detection — no topic data is passed to subagents.</td>
+          <td><strong>Subagents handle everything</strong></td>
+          <td>Each subagent has all 5 <code>codewiki_*</code> tools and handles NOT_INDEXED errors independently. They call <code>codewiki_request_indexing</code> themselves and report back. No pre-checking needed by the master.</td>
         </tr>
         <tr>
           <td><strong><code>user-invokable: false</code> on subagents</strong></td>
@@ -165,8 +163,6 @@ argument-hint: Any question about open-source repos, e.g., "Explain React's arch
 model: GPT-5 Mini (copilot)
 tools:
   - 'agent'
-  - 'codewiki-mcp/codewiki_list_topics'
-  - 'codewiki-mcp/codewiki_request_indexing'
 agents:
   - 'CodeWiki Researcher'
   - 'CodeWiki Code Review'
@@ -184,7 +180,7 @@ agents:
           <tr><td>Code analysis</td><td>CodeWiki Code Review</td><td>"review", "analyse", "module", "function", "code"</td></tr>
           <tr><td>System design</td><td>CodeWiki Architecture Explorer</td><td>"architecture", "design", "structure", "hierarchy"</td></tr>
           <tr><td>Multi-repo comparison</td><td>CodeWiki Comparison</td><td>"compare", "vs", "difference", "or"</td></tr>
-          <tr><td>Unindexed repo</td><td><em>Master handles directly</em></td><td>Any repo returning NOT_INDEXED</td></tr>
+          <tr><td>Unindexed repo</td><td><em>Subagent handles it</em></td><td>Subagent calls <code>codewiki_request_indexing</code> and reports back</td></tr>
         </tbody>
       </table>
     </div>
@@ -192,23 +188,18 @@ agents:
     <div class="tool-card">
       <h3>Master Workflow</h3>
       <pre><code>1. CLASSIFY the user's intent from their message
-2. CHECK AVAILABILITY: Call codewiki_list_topics for the repo(s) mentioned
-   - If NOT_INDEXED → call codewiki_request_indexing, inform user, stop
-   - If OK → proceed to step 3 (do NOT pass topics to subagent)
-3. DELEGATE to the chosen subagent via the `agent` tool:
+2. DELEGATE immediately to the chosen subagent via the `agent` tool:
    - Include the repo URL (owner/repo format)
    - Include the specific question to answer
    - Subagents are stateless and have their own tools — they will
-     fetch data independently
-4. SYNTHESIZE: Present the subagent's result to the user
-5. MULTI-STEP: For complex requests spanning specialties,
+     fetch data and handle errors (including NOT_INDEXED) independently
+3. SYNTHESIZE: Present the subagent's result to the user
+4. MULTI-STEP: For complex requests spanning specialties,
    run subagents sequentially
 
 Example delegation prompt:
   "Research facebook/prophet — explain its main features.
-   Repo: facebook/prophet
-   Use codewiki_read_structure, codewiki_read_contents, and
-   codewiki_search_wiki to get detailed information."</code></pre>
+   Repo: facebook/prophet"</code></pre>
     </div>
 
     <!-- Specialist Subagents -->
@@ -359,19 +350,14 @@ tools:
   - 'codewiki-mcp/codewiki_list_topics'</code></pre>
     </div>
 
-    <h3>2. Master Should Only Have Routing Tools</h3>
+    <h3>2. Master Should Be a Pure Router — Zero MCP Tools</h3>
     <div class="tool-card">
-      <p>If the master orchestrator has access to <code>codewiki_read_contents</code> or <code>codewiki_search_wiki</code>, it will try to answer questions directly instead of delegating. Restrict the master to:</p>
-      <ul>
-        <li><code>agent</code> — for spawning subagents</li>
-        <li><code>codewiki_list_topics</code> — for NOT_INDEXED detection only</li>
-        <li><code>codewiki_request_indexing</code> — for handling NOT_INDEXED directly</li>
-      </ul>
+      <p>Give the master <strong>only</strong> the <code>agent</code> tool. If you add any <code>codewiki_*</code> tools, it will try to answer questions directly or do redundant availability checks — wasting tokens. Each subagent already has all 5 MCP tools and handles NOT_INDEXED errors independently.</p>
     </div>
 
-    <h3>3. Subagents Are Stateless — Don't Pre-Fetch for Them</h3>
+    <h3>3. Subagents Are Stateless — Let Them Do All the Work</h3>
     <div class="tool-card">
-      <p>The master does <strong>not</strong> need to pre-fetch topics and pass them to subagents. Each subagent is stateless and has its own tools — it will call <code>codewiki_read_structure</code>, <code>codewiki_list_topics</code>, etc. independently. The master only calls <code>codewiki_list_topics</code> to detect NOT_INDEXED errors before delegating.</p>
+      <p>Subagents receive only the delegation prompt — no chat history, no pre-fetched data. They call their own tools independently. This means the master doesn't need to check repo availability before routing. The subagent handles everything: discovery, reading, NOT_INDEXED detection, and indexing requests.</p>
     </div>
 
     <h3>4. <code>user-invokable: false</code> Prevents Bypass</h3>
