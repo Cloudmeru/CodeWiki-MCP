@@ -110,9 +110,13 @@
     <h2>VS Code: Agent Skills (Recommended)</h2>
     <p><a href="https://agentskills.io/" target="_blank">Agent Skills</a> is an <strong>open standard</strong> that works across VS Code, GitHub Copilot CLI, Claude Code, Cursor, and many other tools. Skills are folders with a <code>SKILL.md</code> file that Copilot loads on-demand when relevant to your task.</p>
 
+    <div class="tool-card" style="border-left: 3px solid #10b981;">
+      <p><strong>Already included:</strong> This repository ships with the <code>codewiki-usage</code> skill at <code>.github/skills/codewiki-usage/SKILL.md</code> and 5 custom agents in <code>.github/agents/</code>. The examples below show how to create your own or adapt them for other projects.</p>
+    </div>
+
     <h3>Step 1 — Create the skill folder</h3>
     <pre><code># In your project root:
-mkdir -p .github/skills/codewiki-research</code></pre>
+mkdir -p .github/skills/codewiki-usage</code></pre>
     <p>Supported locations for skills:</p>
     <table>
       <thead><tr><th>Type</th><th>Paths</th></tr></thead>
@@ -123,56 +127,59 @@ mkdir -p .github/skills/codewiki-research</code></pre>
     </table>
 
     <h3>Step 2 — Create SKILL.md</h3>
-    <p>Create <code>.github/skills/codewiki-research/SKILL.md</code>:</p>
+    <p>Create <code>.github/skills/codewiki-usage/SKILL.md</code>:</p>
     <pre><code>---
-name: codewiki-research
+name: codewiki-usage
 description: >
-  Research and understand open-source codebases using Google CodeWiki
-  via MCP. Use when the user asks about a GitHub repository's
-  architecture, code structure, implementation details, or
-  documentation. Supports any public GitHub, GitLab, or Bitbucket repo.
+  Best practices for using Google CodeWiki MCP tools to explore
+  open-source repositories. Covers tool selection strategy, token
+  efficiency, pagination, error handling, and multi-repo workflows.
 ---
 
-# CodeWiki Research Skill
+# CodeWiki MCP — Usage Best Practices
 
-You have access to CodeWiki MCP tools to explore open-source repository
-documentation powered by Google CodeWiki and Gemini AI.
+## Tool Selection Strategy (ordered by cost)
 
-## Available Tools
-
-Use these MCP tools (provided by the `codewiki-mcp` server):
-
-1. **codewiki_list_topics** — Discover what documentation exists for a repo
-2. **codewiki_read_structure** — Get the table of contents as JSON
-3. **codewiki_read_contents** — Read full wiki or a specific section
-4. **codewiki_search_wiki** — Ask Gemini a natural-language question about the repo
-5. **codewiki_request_indexing** — Submit unindexed repos for indexing
+| Tool | Tokens | Use When |
+|------|--------|----------|
+| codewiki_read_structure | ~Low  | First call — get the table of contents as JSON |
+| codewiki_list_topics    | ~Med  | Need section titles + short previews |
+| codewiki_read_contents  | ~High | Read full section content (supports pagination) |
+| codewiki_search_wiki    | ~High | Ask Gemini a specific question about the repo |
+| codewiki_request_indexing | ~Min | Submit an unindexed repo for Google to process |
 
 ## Recommended Workflow
 
-1. Start with `codewiki_list_topics(repo_url)` to see if the repo is indexed
-2. Call `codewiki_read_structure(repo_url)` to get section titles
-3. Call `codewiki_read_contents(repo_url, section_title)` for the relevant section
-4. Use `codewiki_search_wiki(repo_url, query)` for specific implementation questions
-5. Synthesize results into a clear, cited answer
+1. Start cheap: codewiki_read_structure(repo_url) to see what sections exist
+2. Pick sections: identify 1–3 relevant section titles
+3. Read targeted: codewiki_read_contents(repo_url, section_title=&lt;title&gt;)
+4. Search if needed: codewiki_search_wiki for specific questions
+5. Paginate large sections: use offset and limit parameters
 
-## Input Format
+## Anti-Patterns to Avoid
 
-- `repo_url`: Use `owner/repo` shorthand (e.g., `microsoft/vscode`) or a full URL
-- `section_title`: Partial or full match of a section title (optional)
-- `query`: Natural language question (for search only)
+- Don't call codewiki_list_topics AND codewiki_read_contents without
+  a section_title — they overlap significantly
+- Don't call codewiki_search_wiki first — it's the most expensive tool
+- Don't read all sections — pick only what's relevant
+- Don't guess section titles — get real titles from codewiki_read_structure
 
-## Guidelines
+## Handling NOT_INDEXED Errors
 
-- Always cite which section your answer comes from
-- If no content exists for a repo, inform the user honestly
-- If a tool returns NOT_INDEXED, call `codewiki_request_indexing(repo_url)` to submit
-- Prefer section reads for broad topics, search for specific questions
-- First calls may take 5-15s (Playwright render); subsequent calls are cached</code></pre>
+1. Tell the user the repo is not yet indexed
+2. Call codewiki_request_indexing(repo_url) to submit
+3. Explain indexing depends on demand — suggest trying later
+4. Never fabricate documentation for an unindexed repo
+
+## Citation Rules
+
+- Always cite which CodeWiki section your information comes from
+- Use format: [Section Title] from owner/repo
+- If from codewiki_search_wiki, note it was an AI-generated answer</code></pre>
 
     <h3>Step 3 — Add supplementary resources (optional)</h3>
     <p>You can add example files alongside SKILL.md for richer context:</p>
-    <pre><code>.github/skills/codewiki-research/
+    <pre><code>.github/skills/codewiki-usage/
   SKILL.md                  # Required — skill definition
   examples/
     research-workflow.md    # Example research session
@@ -192,8 +199,17 @@ Use these MCP tools (provided by the `codewiki-mcp` server):
 
     <h3>Step 5 — Use the skill</h3>
     <p>The skill activates automatically when Copilot detects a relevant task. You can also invoke it manually:</p>
-    <pre><code># Type / in the chat and select "codewiki-research"
-/codewiki-research How does React handle fiber reconciliation?</code></pre>
+    <pre><code># Type / in the chat and select "codewiki-usage"
+/codewiki-usage How does React handle fiber reconciliation?</code></pre>
+
+    <h3>Important: agents need the <code>read</code> tool</h3>
+    <p>For skills to work, agents must have the <code>read</code> tool in their tools list. VS Code injects skill metadata into the agent's context, and the agent uses <code>read</code> to load the full SKILL.md content on demand. All CodeWiki subagents in this repo already include <code>'read'</code>:</p>
+    <pre><code># In .agent.md frontmatter:
+tools:
+  - 'read'                              # Required for skill loading
+  - 'codewiki-mcp/codewiki_list_topics'
+  - 'codewiki-mcp/codewiki_read_structure'
+  # ... etc.</code></pre>
 
     <h3>How Agent Skills loading works</h3>
     <table>
@@ -277,37 +293,64 @@ User's question: ${input:question:What do you want to know?}</code></pre>
     <!-- VS CODE: CUSTOM AGENTS -->
     <!-- ============================================================ -->
     <h2>VS Code: Custom Agents</h2>
-    <p>Custom agents are persistent AI personas with specific tools and instructions. Create a specialized CodeWiki researcher agent.</p>
+    <p>Custom agents are persistent AI personas with specific tools and instructions. This repo ships with a <strong>proven 5-agent architecture</strong> — 1 master orchestrator + 4 specialist subagents. See the <a href="agents.html">Agentic AI Guide</a> for the full architecture.</p>
 
-    <h3>Create the agent file</h3>
-    <p>Create <code>.github/agents/codewiki-researcher.agent.md</code>:</p>
+    <div class="tool-card" style="border-left: 3px solid #10b981;">
+      <p><strong>Included agents</strong> (in <code>.github/agents/</code>):</p>
+      <table>
+        <thead><tr><th>File</th><th>Agent</th><th>Role</th></tr></thead>
+        <tbody>
+          <tr><td><code>codewiki.agent.md</code></td><td><strong>CodeWiki</strong> (master)</td><td>Routes requests to the right specialist</td></tr>
+          <tr><td><code>codewiki-researcher.agent.md</code></td><td>CodeWiki Researcher</td><td>General codebase exploration</td></tr>
+          <tr><td><code>codewiki-reviewer.agent.md</code></td><td>CodeWiki Code Review</td><td>Module/function analysis</td></tr>
+          <tr><td><code>codewiki-architect.agent.md</code></td><td>CodeWiki Architecture Explorer</td><td>System design & data flow</td></tr>
+          <tr><td><code>codewiki-comparison.agent.md</code></td><td>CodeWiki Comparison</td><td>Multi-repo side-by-side analysis</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Creating your own agent</h3>
+    <p>Create a <code>.agent.md</code> file in <code>.github/agents/</code>:</p>
     <pre><code>---
 name: CodeWiki Researcher
 description: Explores open-source codebases using Google CodeWiki
+model: GPT-5 Mini (copilot)
+user-invokable: false
 tools:
-  - codewiki-mcp/*
+  - 'read'
+  - 'codewiki-mcp/codewiki_list_topics'
+  - 'codewiki-mcp/codewiki_read_structure'
+  - 'codewiki-mcp/codewiki_read_contents'
+  - 'codewiki-mcp/codewiki_search_wiki'
+  - 'codewiki-mcp/codewiki_request_indexing'
 ---
-You are a codebase research agent specialized in understanding
-open-source repositories. You use Google CodeWiki MCP tools to
-explore documentation, understand architecture, and answer technical
-questions.
+You are a codebase research agent with access to Google CodeWiki
+via MCP tools. Your job is to help users understand open-source
+repositories by exploring their documentation.
 
 ## Workflow
-1. Discover: Call codewiki_list_topics to check what's available
-2. Navigate: Call codewiki_read_structure to find relevant sections
-3. Read: Call codewiki_read_contents for broad architectural topics
-4. Search: Call codewiki_search_wiki for specific implementation details
-5. Synthesize: Combine findings into a clear, cited answer
+1. codewiki_read_structure → discover sections (cheapest)
+2. codewiki_list_topics → titles + 200-char previews
+3. codewiki_read_contents(section_title=...) → targeted reads
+4. codewiki_search_wiki → specific implementation questions
+5. Synthesize into a clear, cited answer
 
 ## Rules
-- Always cite which section your answer comes from
-- If CodeWiki has no content for a repo, say so honestly
+- Always cite which section your answer is based on
+- If NOT_INDEXED, call codewiki_request_indexing and inform user
 - Use owner/repo shorthand for repo_url parameters
-- Never fabricate information — only report what tools return
-- For architecture questions, prefer reading sections over searching</code></pre>
+- Never fabricate information — only report what tools return</code></pre>
+
+    <h3>Key design choices</h3>
+    <ul>
+      <li><strong><code>user-invokable: false</code></strong> — Subagents are hidden from the picker; only the master is user-facing.</li>
+      <li><strong><code>'read'</code> tool</strong> — Required for on-demand skill loading via SKILL.md files.</li>
+      <li><strong>Explicit tool names</strong> — Use <code>'codewiki-mcp/codewiki_list_topics'</code> format (must match the server name in <code>.vscode/mcp.json</code>).</li>
+      <li><strong>Stateless subagents</strong> — The master does NOT pass pre-fetched data to subagents. Each subagent fetches its own data independently.</li>
+    </ul>
 
     <h3>Use it in chat</h3>
-    <p>Select <strong>"CodeWiki Researcher"</strong> from the agents dropdown in VS Code Chat, or type <code>@codewiki-researcher</code>.</p>
+    <p>Type <code>@codewiki</code> in VS Code Chat to invoke the master orchestrator, which routes to the right specialist.</p>
 
     <!-- ============================================================ -->
     <!-- GITHUB COPILOT CLI -->
@@ -358,7 +401,7 @@ curl -fsSL https://gh.io/copilot-install | bash</code></pre>
         <tr><td>User (personal)</td><td><code>~/.copilot/skills/</code></td></tr>
       </tbody>
     </table>
-    <p>If you created the <code>.github/skills/codewiki-research/SKILL.md</code> file from the VS Code section above, Copilot CLI will automatically discover and use it when relevant.</p>
+    <p>If you created the <code>.github/skills/codewiki-usage/SKILL.md</code> file from the VS Code section above (already included in this repo), Copilot CLI will automatically discover and use it when relevant.</p>
 
     <h3>Step 4 — Custom instructions (automatic)</h3>
     <p>Copilot CLI automatically picks up:</p>
@@ -519,7 +562,7 @@ copilot --allow-all-tools</code></pre>
       <li><strong>GitHub Copilot CLI</strong> — uses the same <code>.github/skills/</code></li>
       <li><strong>Roo Code</strong>, <strong>OpenAI Codex</strong>, <strong>Factory</strong>, <strong>Qodo</strong>, <strong>Goose</strong>, <strong>Firebender</strong></li>
     </ul>
-    <p>For Claude Code, create the skill at <code>.claude/skills/codewiki-research/SKILL.md</code> using the same SKILL.md content shown in the VS Code section above.</p>
+    <p>For Claude Code, create the skill at <code>.claude/skills/codewiki-usage/SKILL.md</code> using the same SKILL.md content shown in the VS Code section above.</p>
 
     <!-- ============================================================ -->
     <!-- SSE MODE -->
@@ -598,7 +641,7 @@ codewiki-mcp --sse --port 8080</code></pre>
       <tbody>
         <tr>
           <td>Skill not appearing in <code>/</code> menu</td>
-          <td>Check <code>SKILL.md</code> is in a supported location and has valid YAML frontmatter with <code>name</code> and <code>description</code></td>
+          <td>Check <code>SKILL.md</code> is in a supported location and has valid YAML frontmatter with <code>name</code> and <code>description</code>. The skill name must match its parent folder name.</td>
         </tr>
         <tr>
           <td>MCP tools not available</td>
@@ -615,6 +658,14 @@ codewiki-mcp --sse --port 8080</code></pre>
         <tr>
           <td>Cursor: tools not showing</td>
           <td>Verify <code>.cursor/mcp.json</code> is valid JSON; restart Cursor</td>
+        </tr>
+        <tr>
+          <td>Skill not loading in agent</td>
+          <td>Ensure the agent has <code>'read'</code> in its tools list. VS Code needs the read tool to load skill content on demand. Check <code>chat.useAgentSkills</code> is <code>true</code> in settings.</td>
+        </tr>
+        <tr>
+          <td>Agent tool name mismatch</td>
+          <td>Tool references in <code>.agent.md</code> must use the format <code>'server-name/tool_name'</code> matching the server name in <code>.vscode/mcp.json</code>. For this repo: <code>'codewiki-mcp/codewiki_list_topics'</code>.</td>
         </tr>
       </tbody>
     </table>
