@@ -52,6 +52,7 @@
 - [ ] Master uses the `agent` tool (not direct tool calls)
 - [ ] Researcher cites CodeWiki sections in its answer
 - [ ] Response contains real documentation content, not generic descriptions
+- [ ] Master presents the **full** subagent response (not a brief summary)
 
 ---
 
@@ -88,6 +89,7 @@
 - [ ] Reviewer focuses on code structure, patterns, and implementation details
 - [ ] Response references specific modules, classes, or functions
 - [ ] No hallucinated code — all content sourced from CodeWiki
+- [ ] Master presents the **full** subagent response (not a brief summary)
 
 ---
 
@@ -124,6 +126,7 @@
 - [ ] Response covers high-level design (layers, components, data flow)
 - [ ] Includes or references diagrams / structural breakdowns from CodeWiki
 - [ ] Does not devolve into code-level details (that's the Reviewer's job)
+- [ ] Master presents the **full** subagent response (not a brief summary)
 
 ---
 
@@ -160,12 +163,13 @@
 - [ ] Agent fetches documentation from **both** repos (not just one)
 - [ ] Comparison is grounded in CodeWiki content, not generic knowledge
 - [ ] Response includes a structured comparison (table, bullet list, or sections)
+- [ ] Master presents the **full** subagent response (not a brief summary)
 
 ---
 
-## 5. Request Indexing (Unindexed Repo — Master Handles Directly)
+## 5. Request Indexing (Unindexed Repo — Subagent Handles It)
 
-**Routing trigger**: Repo that returns `NOT_INDEXED` from `codewiki_list_topics`.
+**Routing trigger**: Repo that returns `NOT_INDEXED` from any CodeWiki tool.
 
 ### Prompts
 
@@ -181,17 +185,18 @@
 
 | Step | What should happen |
 |------|--------------------|
-| 1 | Master calls `codewiki_list_topics` directly (it has this tool) |
-| 2 | Tool returns `NOT_INDEXED` error |
-| 3 | Master calls `codewiki_request_indexing` to submit the repo |
-| 4 | Master reports the indexing request to the user |
+| 1 | Master classifies this as a general exploration request |
+| 2 | Master spawns **CodeWiki Researcher** via the `agent` tool |
+| 3 | Researcher calls a CodeWiki tool and gets `NOT_INDEXED` error |
+| 4 | Researcher calls `codewiki_request_indexing` to submit the repo |
+| 5 | Researcher reports back; Master presents the full result to user |
 
 ### Validation
 
-- [ ] Master handles this **directly** (no subagent needed)
-- [ ] `codewiki_list_topics` is called first to check availability
-- [ ] `codewiki_request_indexing` is called after NOT_INDEXED detection
+- [ ] Master does **not** call any MCP tools directly (it has none)
+- [ ] A subagent detects `NOT_INDEXED` and calls `codewiki_request_indexing`
 - [ ] User is informed the repo has been submitted for indexing
+- [ ] Master presents the **full** subagent response (not a brief summary)
 
 ---
 
@@ -203,7 +208,7 @@
 | Code analysis | CodeWiki Code Review | "review", "analyse", "module", "function", "code" |
 | System design | CodeWiki Architecture Explorer | "architecture", "design", "structure", "hierarchy" |
 | Multi-repo comparison | CodeWiki Comparison | "compare", "vs", "difference", "or" |
-| Unindexed repo | *(master directly)* | Any repo returning NOT_INDEXED |
+| Unindexed repo | CodeWiki Researcher | Subagent detects NOT_INDEXED and calls `codewiki_request_indexing` |
 
 ---
 

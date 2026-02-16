@@ -193,7 +193,10 @@ agents:
    - Include the specific question to answer
    - Subagents are stateless and have their own tools — they will
      fetch data and handle errors (including NOT_INDEXED) independently
-3. SYNTHESIZE: Present the subagent's result to the user
+3. PRESENT THE FULL RESULT: Show the complete subagent response —
+   tables, citations, code snippets, everything. Do NOT replace it
+   with a brief summary like "Done" or "Comparison delivered".
+   Optionally add follow-up suggestions AFTER the full content.
 4. MULTI-STEP: For complex requests spanning specialties,
    run subagents sequentially
 
@@ -391,6 +394,10 @@ tools:
     <h3>7. Skills Provide Reusable Domain Knowledge</h3>
     <div class="tool-card">
       <p>Skills (<code>SKILL.md</code> files) are separate from agents and loaded on-demand via the <code>read</code> tool. They provide domain-specific best practices (tool selection strategy, anti-patterns, workflows) without bloating agent prompts. Since skills are workspace-wide, all agents — including future ones — can access them automatically.</p>
+    </div>
+    <h3>8. Always Present the Full Subagent Result</h3>
+    <div class="tool-card">
+      <p>A common pitfall: the master receives a detailed response from a subagent (comparison tables, cited sections, code examples) but only shows the user a brief summary like <em>"Done — comparison delivered. Want me to do X?"</em>. The subagent's output <strong>IS</strong> the answer — always present the complete content first, then optionally suggest follow-ups after. The master's synthesis step must never gate or truncate results behind a follow-up question.</p>
     </div>
     <!-- ─── Generic Agent Integration ─── -->
     <h2 id="generic-integration">Generic Agent Integration</h2>
