@@ -1,8 +1,8 @@
-"""list_code_wiki_topics tool — Lightweight topic discovery.
+"""codewiki_list_topics tool — Lightweight topic discovery.
 
 Returns section titles with short content previews — dramatically more
 token-efficient than dumping the full page.  For full content, use
-``read_wiki_contents`` with pagination.
+``codewiki_read_contents`` with pagination.
 """
 
 from __future__ import annotations
@@ -25,18 +25,18 @@ logger = logging.getLogger("CodeWiki")
 # Public: tool registration
 # ---------------------------------------------------------------------------
 def register(mcp: FastMCP) -> None:
-    """Register the list_code_wiki_topics tool on the MCP server."""
+    """Register the codewiki_list_topics tool on the MCP server."""
 
     @mcp.tool()
-    def list_code_wiki_topics(repo_url: str) -> str:
+    def codewiki_list_topics(repo_url: str) -> str:
         """
         Retrieve the overview / available topics for a repository from Google CodeWiki.
 
         Use this to discover what CodeWiki knows about a repo before asking
-        specific questions with ``search_code_wiki``.
+        specific questions with ``codewiki_search_wiki``.
 
         Returns section titles with short content previews (not the full page).
-        For detailed content, call ``read_wiki_contents`` with a section title.
+        For detailed content, call ``codewiki_read_contents`` with a section title.
 
         **Response size**: typically 5–30 KB depending on the repository.
         Cached for 30 minutes — repeated calls for the same repo are instant.
@@ -49,7 +49,7 @@ def register(mcp: FastMCP) -> None:
                       or shorthand owner/repo (e.g. microsoft/vscode-copilot-chat).
         """
         start = time.monotonic()
-        logger.info("list_code_wiki_topics — repo: %s", repo_url)
+        logger.info("codewiki_list_topics — repo: %s", repo_url)
 
         # Check topic-specific cache first (30-min TTL)
         validated = validate_topics_input(repo_url)

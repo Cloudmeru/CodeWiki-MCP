@@ -36,10 +36,10 @@ Specifically:
 
 | Step | Workflow Phase | Tool Call | Purpose |
 |------|---------------|-----------|---------|
-| 1 | **Discover** | `list_code_wiki_topics("facebook/react")` | Verify wiki exists, see available topics |
-| 2 | **Navigate** | `read_wiki_structure("facebook/react")` | Get full ToC with section hierarchy |
-| 3 | **Read** | `read_wiki_contents("facebook/react", "React Compiler Internals")` | Fetch detailed compiler pipeline docs |
-| 4 | **Search** | `search_code_wiki("facebook/react", "How does the React Compiler handle memoization and reactive scopes?")` | Get Gemini-powered implementation details |
+| 1 | **Discover** | `codewiki_list_topics("facebook/react")` | Verify wiki exists, see available topics |
+| 2 | **Navigate** | `codewiki_read_structure("facebook/react")` | Get full ToC with section hierarchy |
+| 3 | **Read** | `codewiki_read_contents("facebook/react", "React Compiler Internals")` | Fetch detailed compiler pipeline docs |
+| 4 | **Search** | `codewiki_search_wiki("facebook/react", "How does the React Compiler handle memoization and reactive scopes?")` | Get Gemini-powered implementation details |
 | 5 | **Synthesize** | *(no tool call — agent combines results)* | Produce cited summary from steps 1-4 |
 
 ---

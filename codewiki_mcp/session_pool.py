@@ -1,7 +1,7 @@
 """Persistent browser context pool for CodeWiki search sessions.
 
 Instead of creating and destroying a fresh Playwright browser context for
-every ``search_code_wiki`` call, this module maintains a pool of warm
+every ``codewiki_search_wiki`` call, this module maintains a pool of warm
 contexts keyed by repository URL.  Reusing a context means the CodeWiki
 page is already loaded and the chat panel can be re-used, dramatically
 reducing latency for follow-up questions on the same repo.

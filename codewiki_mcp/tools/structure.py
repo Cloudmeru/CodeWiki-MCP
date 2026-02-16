@@ -1,4 +1,4 @@
-"""read_wiki_structure tool — Lightweight JSON table of contents.
+"""codewiki_read_structure tool — Lightweight JSON table of contents.
 
 The most token-efficient tool — returns structured metadata only.
 Always call this first to discover section titles before reading content.
@@ -19,18 +19,18 @@ logger = logging.getLogger("CodeWiki")
 
 
 def register(mcp: FastMCP) -> None:
-    """Register the read_wiki_structure tool on the MCP server."""
+    """Register the codewiki_read_structure tool on the MCP server."""
 
     @mcp.tool()
-    def read_wiki_structure(repo_url: str) -> str:
+    def codewiki_read_structure(repo_url: str) -> str:
         """
         Get a list of documentation topics for a repository from Google CodeWiki.
 
         Returns the table of contents / section structure as a JSON list so you
-        can choose which sections to read with ``read_wiki_contents``.
+        can choose which sections to read with ``codewiki_read_contents``.
 
-        **Recommended first step** — call this before ``read_wiki_contents``
-        or ``list_code_wiki_topics`` to discover available sections without
+        **Recommended first step** — call this before ``codewiki_read_contents``
+        or ``codewiki_list_topics`` to discover available sections without
         consuming many tokens.
 
         **Response size**: typically 1–3 KB (lightweight JSON).
@@ -44,7 +44,7 @@ def register(mcp: FastMCP) -> None:
                       or shorthand owner/repo (e.g. facebook/react).
         """
         start = time.monotonic()
-        logger.info("read_wiki_structure — repo: %s", repo_url)
+        logger.info("codewiki_read_structure — repo: %s", repo_url)
 
         result = fetch_page_or_error(repo_url)
         if isinstance(result, ToolResponse):

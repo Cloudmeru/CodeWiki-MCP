@@ -1,10 +1,11 @@
 """Tool registration helpers for CodeWiki MCP.
 
-5 tools available:
-  - list_code_wiki_topics  — Legacy text overview (httpx)
-  - read_wiki_structure    — JSON TOC/sections list (httpx)
-  - read_wiki_contents     — Full or section-specific markdown (httpx)
-  - search_code_wiki       — Interactive chat Q&A (Playwright)
+6 tools available:
+  - codewiki_list_topics       — Legacy text overview (httpx)
+  - codewiki_read_structure    — JSON TOC/sections list (httpx)
+  - codewiki_read_contents     — Full or section-specific markdown (httpx)
+  - codewiki_search_wiki       — Interactive chat Q&A (Playwright)
+  - codewiki_request_indexing  — Submit repo for indexing (Playwright)
 """
 
 from __future__ import annotations
@@ -20,6 +21,7 @@ def register_all_tools(mcp: FastMCP) -> None:
     # pylint: disable=import-outside-toplevel
     # Lazy imports avoid circular dependencies at module load time.
     from .contents import register as register_contents
+    from .request_indexing import register as register_request_indexing
     from .search import register as register_search
     from .structure import register as register_structure
     from .topics import register as register_topics
@@ -28,3 +30,4 @@ def register_all_tools(mcp: FastMCP) -> None:
     register_structure(mcp)
     register_contents(mcp)
     register_search(mcp)
+    register_request_indexing(mcp)

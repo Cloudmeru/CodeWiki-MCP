@@ -105,6 +105,21 @@ VERBOSE: bool = _env_bool("CODEWIKI_VERBOSE", False)
 CODEWIKI_BASE_URL: str = os.environ.get("CODEWIKI_BASE_URL", "https://codewiki.google")
 
 # ---------------------------------------------------------------------------
+# Request / indexing URL (shown to users when a repo is not indexed)
+# ---------------------------------------------------------------------------
+CODEWIKI_REQUEST_URL: str = os.environ.get(
+    "CODEWIKI_REQUEST_URL",
+    "https://codewiki.google",
+)
+
+# Strings that indicate a 404 / not-indexed page in CodeWiki's rendered HTML
+NOT_INDEXED_INDICATORS: list[str] = [
+    "This page doesn\u2019t exist",  # curly apostrophe on the 404 page
+    "This page doesn't exist",
+    "404",
+]
+
+# ---------------------------------------------------------------------------
 # User agent — keep in sync with a recent stable Chrome release
 # ---------------------------------------------------------------------------
 USER_AGENT: str = (

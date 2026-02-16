@@ -1,4 +1,4 @@
-"""search_code_wiki tool — Ask Google CodeWiki a question via Playwright chat.
+"""codewiki_search_wiki tool — Ask Google CodeWiki a question via Playwright chat.
 
 The chat feature on CodeWiki is an Angular SPA with a ``<chat>`` custom element
 containing ``<new-message-form>`` (textarea + send button) and ``<thread>``
@@ -420,15 +420,15 @@ def _run_search(inp: SearchInput) -> ToolResponse:
 # Public: tool registration
 # ---------------------------------------------------------------------------
 def register(mcp: FastMCP) -> None:
-    """Register the search_code_wiki tool on the MCP server."""
+    """Register the codewiki_search_wiki tool on the MCP server."""
 
     @mcp.tool()
-    def search_code_wiki(repo_url: str, query: str = "") -> str:
+    def codewiki_search_wiki(repo_url: str, query: str = "") -> str:
         """
         Ask Google CodeWiki a question about an open-source repository.
 
         This uses the interactive chat feature powered by Gemini.
-        For reading wiki content directly, use ``read_wiki_contents`` instead.
+        For reading wiki content directly, use ``codewiki_read_contents`` instead.
 
         Results are cached for 2 minutes — repeated identical queries are instant.
 
@@ -442,7 +442,7 @@ def register(mcp: FastMCP) -> None:
             query: The question to ask (required).
         """
         start = time.monotonic()
-        logger.info("search_code_wiki — repo: %s, query: %s", repo_url, query)
+        logger.info("codewiki_search_wiki — repo: %s, query: %s", repo_url, query)
 
         validated = validate_search_input(repo_url, query)
         if isinstance(validated, ToolResponse):

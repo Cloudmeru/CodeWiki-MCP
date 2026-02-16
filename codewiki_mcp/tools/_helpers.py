@@ -19,6 +19,20 @@ from ..types import (
     validate_topics_input,
 )
 
+# ---------------------------------------------------------------------------
+# Not-indexed detection
+# ---------------------------------------------------------------------------
+def _is_not_indexed(page: WikiPage) -> bool:
+    """Return True if the fetched page is a CodeWiki 404 / not-indexed page.
+
+    CodeWiki renders a 404 SPA page containing "This page doesn't exist"
+    and a "request a repo" prompt when the repository hasn't been indexed.
+    """
+    if page.sections:
+        return False
+    text = (page.raw_text or "").lower()
+    return any(ind.lower() in text for ind in config.NOT_INDEXED_INDICATORS)
+
 logger = logging.getLogger("CodeWiki")
 
 
@@ -112,6 +126,19 @@ def fetch_page_or_error(repo_url: str) -> WikiPage | ToolResponse:
             ErrorCode.NO_CONTENT,
             f"No content found for {validated.repo_url}. "
             "The repository may not be indexed by CodeWiki.",
+            repo_url=validated.repo_url,
+        )
+
+    if _is_not_indexed(page):
+        codewiki_url = build_codewiki_url(validated.repo_url)
+        return ToolResponse.error(
+            ErrorCode.NOT_INDEXED,
+            f"The repository {validated.repo_url} is not yet indexed by "
+            f"Google CodeWiki. You can request indexing by visiting: "
+            f"{config.CODEWIKI_REQUEST_URL} and searching for the "
+            f"repository, or navigate directly to {codewiki_url} — "
+            f"CodeWiki may begin indexing automatically. "
+            f"Please try again later once indexing is complete.",
             repo_url=validated.repo_url,
         )
 

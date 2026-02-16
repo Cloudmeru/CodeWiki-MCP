@@ -1,3 +1,8 @@
 """CodeWiki MCP Server — AI-powered access to Google CodeWiki."""
 
-__version__ = "1.0.4"
+from importlib.metadata import version, PackageNotFoundError
+
+try:
+    __version__: str = version("codewiki-mcp")
+except PackageNotFoundError:
+    __version__ = "0.0.0-dev"

@@ -67,10 +67,11 @@ docker run -it --rm codewiki-mcp
 
 | Tool | Description |
 |------|-------------|
-| `list_code_wiki_topics` | Topics overview with previews |
-| `read_wiki_structure` | JSON table of contents |
-| `read_wiki_contents` | Full or section-specific docs (paginated) |
-| `search_code_wiki` | Gemini-powered Q&A chat |
+| `codewiki_list_topics` | Topics overview with previews |
+| `codewiki_read_structure` | JSON table of contents |
+| `codewiki_read_contents` | Full or section-specific docs (paginated) |
+| `codewiki_search_wiki` | Gemini-powered Q&A chat |
+| `codewiki_request_indexing` | Submit unindexed repos for indexing |
 
 All tools accept `repo_url` as a full URL or `owner/repo` shorthand.
 

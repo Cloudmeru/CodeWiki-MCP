@@ -22,7 +22,7 @@
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6c63ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8M8 11h6"/></svg>
       CodeWiki MCP
     </div>
-    <span class="version">v1.0.4</span>
+    <span class="version">v1.1.0</span>
   </div>
   <nav>
     <div class="nav-section">Overview</div>
@@ -138,17 +138,18 @@ documentation powered by Google CodeWiki and Gemini AI.
 
 Use these MCP tools (provided by the `codewiki-mcp` server):
 
-1. **list_code_wiki_topics** — Discover what documentation exists for a repo
-2. **read_wiki_structure** — Get the table of contents as JSON
-3. **read_wiki_contents** — Read full wiki or a specific section
-4. **search_code_wiki** — Ask Gemini a natural-language question about the repo
+1. **codewiki_list_topics** — Discover what documentation exists for a repo
+2. **codewiki_read_structure** — Get the table of contents as JSON
+3. **codewiki_read_contents** — Read full wiki or a specific section
+4. **codewiki_search_wiki** — Ask Gemini a natural-language question about the repo
+5. **codewiki_request_indexing** — Submit unindexed repos for indexing
 
 ## Recommended Workflow
 
-1. Start with `list_code_wiki_topics(repo_url)` to see if the repo is indexed
-2. Call `read_wiki_structure(repo_url)` to get section titles
-3. Call `read_wiki_contents(repo_url, section_title)` for the relevant section
-4. Use `search_code_wiki(repo_url, query)` for specific implementation questions
+1. Start with `codewiki_list_topics(repo_url)` to see if the repo is indexed
+2. Call `codewiki_read_structure(repo_url)` to get section titles
+3. Call `codewiki_read_contents(repo_url, section_title)` for the relevant section
+4. Use `codewiki_search_wiki(repo_url, query)` for specific implementation questions
 5. Synthesize results into a clear, cited answer
 
 ## Input Format
@@ -161,6 +162,7 @@ Use these MCP tools (provided by the `codewiki-mcp` server):
 
 - Always cite which section your answer comes from
 - If no content exists for a repo, inform the user honestly
+- If a tool returns NOT_INDEXED, call `codewiki_request_indexing(repo_url)` to submit
 - Prefer section reads for broad topics, search for specific questions
 - First calls may take 5-15s (Playwright render); subsequent calls are cached</code></pre>
 
@@ -214,10 +216,11 @@ Use these MCP tools (provided by the `codewiki-mcp` server):
 When the user asks about an open-source repository's architecture,
 implementation, or documentation, use the CodeWiki MCP tools:
 
-- Start with `list_code_wiki_topics` to check coverage
-- Use `read_wiki_structure` to find relevant sections
-- Use `read_wiki_contents` for broad topics
-- Use `search_code_wiki` for specific implementation questions
+- Start with `codewiki_list_topics` to check coverage
+- Use `codewiki_read_structure` to find relevant sections
+- Use `codewiki_read_contents` for broad topics
+- Use `codewiki_search_wiki` for specific implementation questions
+- Use `codewiki_request_indexing` when a repo is not yet indexed
 - Always cite which section or tool response your answer is based on
 - Use `owner/repo` shorthand for repository URLs</code></pre>
 
@@ -254,9 +257,9 @@ tools:
 Research the repository: ${input:repo:owner/repo}
 
 Follow this workflow:
-1. Call list_code_wiki_topics to see what documentation exists
-2. Call read_wiki_structure to get the table of contents
-3. Read the most relevant sections using read_wiki_contents
+1. Call codewiki_list_topics to see what documentation exists
+2. Call codewiki_read_structure to get the table of contents
+3. Read the most relevant sections using codewiki_read_contents
 4. Answer the user's question with citations
 
 User's question: ${input:question:What do you want to know?}</code></pre>
@@ -286,10 +289,10 @@ explore documentation, understand architecture, and answer technical
 questions.
 
 ## Workflow
-1. Discover: Call list_code_wiki_topics to check what's available
-2. Navigate: Call read_wiki_structure to find relevant sections
-3. Read: Call read_wiki_contents for broad architectural topics
-4. Search: Call search_code_wiki for specific implementation details
+1. Discover: Call codewiki_list_topics to check what's available
+2. Navigate: Call codewiki_read_structure to find relevant sections
+3. Read: Call codewiki_read_contents for broad architectural topics
+4. Search: Call codewiki_search_wiki for specific implementation details
 5. Synthesize: Combine findings into a clear, cited answer
 
 ## Rules

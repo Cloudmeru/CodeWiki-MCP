@@ -22,7 +22,7 @@
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6c63ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8M8 11h6"/></svg>
       CodeWiki MCP
     </div>
-    <span class="version">v1.0.4</span>
+    <span class="version">v1.1.0</span>
   </div>
   <nav>
     <div class="nav-section">Overview</div>
@@ -79,16 +79,17 @@
 <main class="main">
   <div class="content">
     <h1 class="page-title">Tools Reference</h1>
-    <p class="page-subtitle">CodeWiki MCP provides 4 tools for querying open-source repository documentation.</p>
+    <p class="page-subtitle">CodeWiki MCP provides 5 tools for querying open-source repository documentation.</p>
 
     <h2>Tools Architecture</h2>
     <div class="diagram">
       <div class="mermaid">
         graph LR
-          A[list_code_wiki_topics] -->|calls| B[Browser Singleton]
-          C[read_wiki_structure] -->|calls| B
-          D[read_wiki_contents] -->|calls| B
-          E[search_code_wiki] -->|calls| B
+          A[codewiki_list_topics] -->|calls| B[Browser Singleton]
+          C[codewiki_read_structure] -->|calls| B
+          D[codewiki_read_contents] -->|calls| B
+          E[codewiki_search_wiki] -->|calls| B
+          F2[codewiki_request_indexing] -->|calls| B
           B --> F[Playwright]
           F --> G[Parser]
           G --> H[JSON Response]
@@ -98,7 +99,7 @@
 
     <!-- Tool 1 -->
     <div class="tool-card">
-      <h3><code>list_code_wiki_topics</code></h3>
+      <h3><code>codewiki_list_topics</code></h3>
       <p>Retrieve section titles and short content previews for a repository. Returns a lightweight topic listing — <strong>not</strong> the full page content. Use this for quick discovery before drilling into specific sections.</p>
       <table>
         <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
@@ -111,7 +112,7 @@
 
     <!-- Tool 2 -->
     <div class="tool-card">
-      <h3><code>read_wiki_structure</code></h3>
+      <h3><code>codewiki_read_structure</code></h3>
       <p>Get a JSON list of documentation sections/topics. <strong>Recommended first step</strong> — the most token-efficient tool. Returns only titles and heading levels as structured data.</p>
       <table>
         <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
@@ -124,7 +125,7 @@
 
     <!-- Tool 3 -->
     <div class="tool-card">
-      <h3><code>read_wiki_contents</code></h3>
+      <h3><code>codewiki_read_contents</code></h3>
       <p>View full or section-specific documentation. Without <code>section_title</code>, returns paginated sections. With <code>section_title</code>, returns just that section.</p>
       <table>
         <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
@@ -140,7 +141,7 @@
 
     <!-- Tool 4 -->
     <div class="tool-card">
-      <h3><code>search_code_wiki</code></h3>
+      <h3><code>codewiki_search_wiki</code></h3>
       <p>Ask Google CodeWiki a question about an open-source repository. Uses the interactive Gemini-powered chat. Results are cached for 2 minutes.</p>
       <table>
         <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
@@ -156,6 +157,21 @@ query: Where are the Allow/Skip buttons implemented?
 
 repo_url: microsoft/vscode
 query: How does the extension activation work?</code></pre>
+    </div>
+
+    <!-- Tool 5 -->
+    <div class="tool-card">
+      <h3><code>codewiki_request_indexing</code></h3>
+      <p>Submit a repository to Google CodeWiki for indexing. Use this when other tools return a <code>NOT_INDEXED</code> error, indicating the repo has no CodeWiki documentation yet.</p>
+      <table>
+        <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>repo_url</code></td><td>string</td><td>Yes</td><td>Full URL or <code>owner/repo</code> shorthand</td></tr>
+        </tbody>
+      </table>
+      <p><em>Uses Playwright to navigate CodeWiki's search page, click "Request repository", fill in the GitHub URL, and submit. Returns confirmation when successful.</em></p>
+      <h4>Example</h4>
+      <pre><code>repo_url: Snowflake-Labs/agent-world-model</code></pre>
     </div>
 
     <h2>Response Format</h2>
@@ -197,6 +213,8 @@ query: How does the extension activation work?</code></pre>
         <tr><td><code>TIMEOUT</code></td><td>Page or response took too long</td></tr>
         <tr><td><code>DRIVER_ERROR</code></td><td>Playwright/browser error</td></tr>
         <tr><td><code>NO_CONTENT</code></td><td>Page rendered but no content found</td></tr>
+        <tr><td><code>NOT_INDEXED</code></td><td>Repository is not yet indexed by CodeWiki — use <code>codewiki_request_indexing</code> to submit it</td></tr>
+        <tr><td><code>RATE_LIMITED</code></td><td>Too many requests for this repo — wait and retry</td></tr>
         <tr><td><code>INPUT_NOT_FOUND</code></td><td>Chat input element not found on page</td></tr>
         <tr><td><code>INTERNAL</code></td><td>Unexpected internal error</td></tr>
         <tr><td><code>RETRY_EXHAUSTED</code></td><td>All retry attempts failed</td></tr>

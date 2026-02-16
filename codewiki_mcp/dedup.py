@@ -2,7 +2,7 @@
 
 Prevents duplicate Playwright browser launches when the same repo URL
 is requested multiple times concurrently (e.g. an eager agent calling
-``list_code_wiki_topics`` 60 times in a row).
+``codewiki_list_topics`` 60 times in a row).
 
 **How it works**: The first request for a given URL proceeds normally.
 Concurrent requests for the *same* URL block on a ``threading.Event``

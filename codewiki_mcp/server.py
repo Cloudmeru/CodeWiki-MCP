@@ -114,6 +114,21 @@ def main(argv: list[str] | None = None) -> None:
     """CLI entry point — starts the MCP server with chosen transport."""
     args = parse_args(argv)
 
+    # ---- ASCII banner (stderr so it never pollutes stdio JSON) ----
+    from . import __version__  # pylint: disable=import-outside-toplevel
+
+    banner = (
+        "\n"
+        "   ___          _    __        ___ _    _   __  __  ___ ___\n"
+        "  / __|___   __| |__\\ \\      / (_) | _(_) |  \\/  |/ __| _ \\\n"
+        " | |  / _ \\ / _` / -_) \\ /\\ / /| | |/ / | | |\\/| | (__|  _/\n"
+        " | |_| (_) | (_| \\___|\\ \\V  V / |_|   <|_| |_|  |_|\\___|_|\n"
+        "  \\___\\___/ \\__,_\\___| \\_/\\_/  |_||_|\\_\\_| |___/\n"
+        f"                        v{__version__}\n"
+        "  CodeWiki MCP Server 2026 - by CloudMeru\n"
+    )
+    print(banner, file=sys.stderr, flush=True)
+
     # Register signal handlers for graceful shutdown
     signal.signal(signal.SIGINT, _shutdown)
     signal.signal(signal.SIGTERM, _shutdown)

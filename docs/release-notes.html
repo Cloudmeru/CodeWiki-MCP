@@ -27,7 +27,7 @@
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6c63ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8M8 11h6"/></svg>
       CodeWiki MCP
     </div>
-    <span class="version">v1.0.4</span>
+    <span class="version">v1.1.0</span>
   </div>
   <nav>
     <div class="nav-section">Overview</div>
@@ -92,6 +92,36 @@
     <h2>Latest Releases</h2>
 
     <section class="release">
+      <h3>v1.1.0 — 2026-02-16</h3>
+      <ul>
+        <li><strong>New tool — <code>codewiki_request_indexing</code>:</strong></li>
+        <ul>
+          <li>Submit unindexed repositories to Google CodeWiki for indexing directly from the MCP server.</li>
+          <li>Full Playwright automation — navigates to the CodeWiki search page, clicks "Request repository", fills the URL dialog, and submits.</li>
+          <li>Automatic <code>NOT_INDEXED</code> detection — all tools now detect unindexed repos and return a structured <code>NOT_INDEXED</code> error code with guidance to call <code>codewiki_request_indexing</code>.</li>
+        </ul>
+        <li><strong>Tool renaming — <code>codewiki_verb_noun</code> pattern:</strong></li>
+        <ul>
+          <li>All tools renamed for better LLM/agent distinguishability: <code>codewiki_list_topics</code>, <code>codewiki_read_structure</code>, <code>codewiki_read_contents</code>, <code>codewiki_search_wiki</code>, <code>codewiki_request_indexing</code>.</li>
+          <li>Updated all agent instructions, skill definitions, README, and documentation.</li>
+        </ul>
+        <li><strong>Version management:</strong></li>
+        <ul>
+          <li><code>__init__.py</code> now reads version from <code>importlib.metadata</code> at runtime — no more hardcoded duplicate.</li>
+          <li>New <code>scripts/bump_version.py</code> — single command bumps <code>pyproject.toml</code>, all docs version badges, and the server banner year.</li>
+        </ul>
+        <li><strong>ASCII startup banner:</strong></li>
+        <ul>
+          <li>Server now prints a branded ASCII banner with version and year to stderr on startup.</li>
+        </ul>
+        <li><strong>Testing:</strong></li>
+        <ul>
+          <li>10 new tests for NOT_INDEXED detection and request indexing tool. Total: 161 tests passing.</li>
+        </ul>
+      </ul>
+    </section>
+
+    <section class="release">
       <h3>v1.0.4 — 2026-02-16</h3>
       <ul>
         <li><strong>Critical bug fixes:</strong></li>
@@ -123,7 +153,7 @@
           <li><strong>In-flight deduplication</strong> — concurrent identical tool calls are collapsed into one, preventing duplicate work.</li>
           <li><strong>Rate limiting</strong> — max 10 calls per 60 s per repository URL; returns a clear <code>RATE_LIMITED</code> error when exceeded.</li>
           <li><strong>Content hash</strong> — every response includes a short hash so agents can detect duplicate content without re-reading.</li>
-          <li><strong>Topic cache</strong> — <code>list_code_wiki_topics</code> results are cached for 5 min with a <code>size_hint</code> field to guide agents.</li>
+          <li><strong>Topic cache</strong> — <code>codewiki_list_topics</code> results are cached for 5 min with a <code>size_hint</code> field to guide agents.</li>
           <li><strong>Idempotency key</strong> — <code>repo_url::content_hash</code> key in every response for agent-level dedup.</li>
         </ul>
         <li><strong>Testing:</strong></li>
@@ -138,8 +168,8 @@
       <ul>
         <li><strong>Token efficiency optimizations:</strong></li>
         <ul>
-          <li><code>list_code_wiki_topics</code> now returns titles + 200-char previews instead of dumping the full page (~80% fewer tokens).</li>
-          <li><code>read_wiki_contents</code> supports pagination via <code>offset</code> and <code>limit</code> parameters — read only what you need.</li>
+          <li><code>codewiki_list_topics</code> now returns titles + 200-char previews instead of dumping the full page (~80% fewer tokens).</li>
+          <li><code>codewiki_read_contents</code> supports pagination via <code>offset</code> and <code>limit</code> parameters — read only what you need.</li>
           <li>Search responses are cached for 2 minutes — repeated identical queries return instantly.</li>
           <li>Parsed <code>WikiPage</code> objects are cached in memory — avoids re-parsing the same HTML on repeated tool calls.</li>
           <li>Word-boundary-aware truncation prevents mid-word content cuts.</li>

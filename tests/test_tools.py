@@ -55,7 +55,7 @@ class TestCreateServer:
 
 
 # ---------------------------------------------------------------------------
-# list_code_wiki_topics tool
+# codewiki_list_topics tool
 # ---------------------------------------------------------------------------
 class TestTopicsTool:
     def test_success(self, mocker):
@@ -69,7 +69,7 @@ class TestTopicsTool:
         register(mcp)
 
         tools = {t.name: t for t in mcp._tool_manager.list_tools()}
-        assert "list_code_wiki_topics" in tools
+        assert "codewiki_list_topics" in tools
 
     def test_returns_json_envelope(self, mocker):
         page = make_wiki_page()
@@ -82,7 +82,7 @@ class TestTopicsTool:
         register(mcp)
 
         # Call the tool function directly
-        fn = mcp._tool_manager._tools["list_code_wiki_topics"].fn
+        fn = mcp._tool_manager._tools["codewiki_list_topics"].fn
         result = fn(repo_url="microsoft/vscode")
         parsed = json.loads(result)
         assert parsed["status"] == "ok"
@@ -99,7 +99,7 @@ class TestTopicsTool:
         mcp = FastMCP("test")
         register(mcp)
 
-        fn = mcp._tool_manager._tools["list_code_wiki_topics"].fn
+        fn = mcp._tool_manager._tools["codewiki_list_topics"].fn
         result = fn(repo_url="microsoft/vscode")
         parsed = json.loads(result)
         assert parsed["status"] == "error"
@@ -112,7 +112,7 @@ class TestTopicsTool:
         mcp = FastMCP("test")
         register(mcp)
 
-        fn = mcp._tool_manager._tools["list_code_wiki_topics"].fn
+        fn = mcp._tool_manager._tools["codewiki_list_topics"].fn
         result = fn(repo_url="bad")
         parsed = json.loads(result)
         assert parsed["status"] == "error"
@@ -130,7 +130,7 @@ class TestTopicsTool:
         mcp = FastMCP("test")
         register(mcp)
 
-        fn = mcp._tool_manager._tools["list_code_wiki_topics"].fn
+        fn = mcp._tool_manager._tools["codewiki_list_topics"].fn
         result = fn(repo_url="microsoft/vscode")
         parsed = json.loads(result)
         assert parsed["status"] == "error"
@@ -147,7 +147,7 @@ class TestTopicsTool:
         mcp = FastMCP("test")
         register(mcp)
 
-        fn = mcp._tool_manager._tools["list_code_wiki_topics"].fn
+        fn = mcp._tool_manager._tools["codewiki_list_topics"].fn
         result = fn(repo_url="microsoft/vscode")
         parsed = json.loads(result)
         # The data should contain section titles
@@ -156,7 +156,7 @@ class TestTopicsTool:
 
 
 # ---------------------------------------------------------------------------
-# read_wiki_structure tool
+# codewiki_read_structure tool
 # ---------------------------------------------------------------------------
 class TestStructureTool:
     def test_returns_json_sections(self, mocker):
@@ -169,7 +169,7 @@ class TestStructureTool:
         mcp = FastMCP("test")
         register(mcp)
 
-        fn = mcp._tool_manager._tools["read_wiki_structure"].fn
+        fn = mcp._tool_manager._tools["codewiki_read_structure"].fn
         result = fn(repo_url="microsoft/vscode")
         outer = json.loads(result)
         assert outer["status"] == "ok"
@@ -189,7 +189,7 @@ class TestStructureTool:
         mcp = FastMCP("test")
         register(mcp)
 
-        fn = mcp._tool_manager._tools["read_wiki_structure"].fn
+        fn = mcp._tool_manager._tools["codewiki_read_structure"].fn
         result = fn(repo_url="microsoft/vscode")
         inner = json.loads(json.loads(result)["data"])
         titles = [s["title"] for s in inner["sections"]]
@@ -199,7 +199,7 @@ class TestStructureTool:
 
 
 # ---------------------------------------------------------------------------
-# read_wiki_contents tool
+# codewiki_read_contents tool
 # ---------------------------------------------------------------------------
 class TestContentsTool:
     def test_full_content(self, mocker):
@@ -212,7 +212,7 @@ class TestContentsTool:
         mcp = FastMCP("test")
         register(mcp)
 
-        fn = mcp._tool_manager._tools["read_wiki_contents"].fn
+        fn = mcp._tool_manager._tools["codewiki_read_contents"].fn
         result = fn(repo_url="microsoft/vscode")
         parsed = json.loads(result)
         assert parsed["status"] == "ok"
@@ -229,7 +229,7 @@ class TestContentsTool:
         mcp = FastMCP("test")
         register(mcp)
 
-        fn = mcp._tool_manager._tools["read_wiki_contents"].fn
+        fn = mcp._tool_manager._tools["codewiki_read_contents"].fn
         result = fn(repo_url="microsoft/vscode", section_title="Architecture")
         parsed = json.loads(result)
         assert parsed["status"] == "ok"
@@ -246,7 +246,7 @@ class TestContentsTool:
         mcp = FastMCP("test")
         register(mcp)
 
-        fn = mcp._tool_manager._tools["read_wiki_contents"].fn
+        fn = mcp._tool_manager._tools["codewiki_read_contents"].fn
         result = fn(repo_url="microsoft/vscode", section_title="Nonexistent Section")
         parsed = json.loads(result)
         assert parsed["status"] == "error"
@@ -264,7 +264,7 @@ class TestContentsTool:
         mcp = FastMCP("test")
         register(mcp)
 
-        fn = mcp._tool_manager._tools["read_wiki_contents"].fn
+        fn = mcp._tool_manager._tools["codewiki_read_contents"].fn
         # Ask for only 2 sections starting at offset 0
         result = fn(repo_url="microsoft/vscode", offset=0, limit=2)
         parsed = json.loads(result)
@@ -276,7 +276,7 @@ class TestContentsTool:
 
 
 # ---------------------------------------------------------------------------
-# search_code_wiki tool (Playwright — mocked)
+# codewiki_search_wiki tool (Playwright — mocked)
 # ---------------------------------------------------------------------------
 class TestSearchTool:
     def test_validation_error(self):
@@ -286,7 +286,7 @@ class TestSearchTool:
         mcp = FastMCP("test")
         register(mcp)
 
-        fn = mcp._tool_manager._tools["search_code_wiki"].fn
+        fn = mcp._tool_manager._tools["codewiki_search_wiki"].fn
         result = fn(repo_url="bad", query="test")
         parsed = json.loads(result)
         assert parsed["status"] == "error"
@@ -299,7 +299,7 @@ class TestSearchTool:
         mcp = FastMCP("test")
         register(mcp)
 
-        fn = mcp._tool_manager._tools["search_code_wiki"].fn
+        fn = mcp._tool_manager._tools["codewiki_search_wiki"].fn
         result = fn(repo_url="microsoft/vscode", query="")
         parsed = json.loads(result)
         assert parsed["status"] == "error"
@@ -331,7 +331,7 @@ class TestSearchTool:
         mcp = FastMCP("test")
         register(mcp)
 
-        fn = mcp._tool_manager._tools["search_code_wiki"].fn
+        fn = mcp._tool_manager._tools["codewiki_search_wiki"].fn
         result = fn(
             repo_url="microsoft/vscode", query="What framework does VS Code use?"
         )
@@ -358,7 +358,7 @@ class TestRateLimitIntegration:
         mcp = FastMCP("test")
         register(mcp)
 
-        fn = mcp._tool_manager._tools["list_code_wiki_topics"].fn
+        fn = mcp._tool_manager._tools["codewiki_list_topics"].fn
         result = fn(repo_url="microsoft/vscode")
         parsed = json.loads(result)
         assert parsed["status"] == "error"
@@ -374,7 +374,7 @@ class TestRateLimitIntegration:
         mcp = FastMCP("test")
         register(mcp)
 
-        fn = mcp._tool_manager._tools["read_wiki_structure"].fn
+        fn = mcp._tool_manager._tools["codewiki_read_structure"].fn
         result = fn(repo_url="microsoft/vscode")
         parsed = json.loads(result)
         assert parsed["status"] == "error"
@@ -390,7 +390,7 @@ class TestRateLimitIntegration:
         mcp = FastMCP("test")
         register(mcp)
 
-        fn = mcp._tool_manager._tools["read_wiki_contents"].fn
+        fn = mcp._tool_manager._tools["codewiki_read_contents"].fn
         result = fn(repo_url="microsoft/vscode")
         parsed = json.loads(result)
         assert parsed["status"] == "error"
@@ -406,7 +406,7 @@ class TestRateLimitIntegration:
         mcp = FastMCP("test")
         register(mcp)
 
-        fn = mcp._tool_manager._tools["search_code_wiki"].fn
+        fn = mcp._tool_manager._tools["codewiki_search_wiki"].fn
         result = fn(repo_url="microsoft/vscode", query="How does it work?")
         parsed = json.loads(result)
         assert parsed["status"] == "error"
@@ -429,7 +429,7 @@ class TestResponseMetaIntegration:
         mcp = FastMCP("test")
         register(mcp)
 
-        fn = mcp._tool_manager._tools["list_code_wiki_topics"].fn
+        fn = mcp._tool_manager._tools["codewiki_list_topics"].fn
         result = fn(repo_url="microsoft/vscode")
         parsed = json.loads(result)
         assert parsed["status"] == "ok"
@@ -447,7 +447,7 @@ class TestResponseMetaIntegration:
         mcp = FastMCP("test")
         register(mcp)
 
-        fn = mcp._tool_manager._tools["read_wiki_structure"].fn
+        fn = mcp._tool_manager._tools["codewiki_read_structure"].fn
         result = fn(repo_url="microsoft/vscode")
         parsed = json.loads(result)
         assert parsed["status"] == "ok"
@@ -465,8 +465,223 @@ class TestResponseMetaIntegration:
         mcp = FastMCP("test")
         register(mcp)
 
-        fn = mcp._tool_manager._tools["read_wiki_structure"].fn
+        fn = mcp._tool_manager._tools["codewiki_read_structure"].fn
         r1 = json.loads(fn(repo_url="microsoft/vscode"))
         r2 = json.loads(fn(repo_url="microsoft/vscode"))
         assert r1["meta"]["content_hash"] == r2["meta"]["content_hash"]
         assert r1["idempotency_key"] == r2["idempotency_key"]
+
+
+# ---------------------------------------------------------------------------
+# NOT_INDEXED detection
+# ---------------------------------------------------------------------------
+class TestNotIndexedDetection:
+    """Test that tools correctly detect repos not indexed by CodeWiki."""
+
+    def test_topics_not_indexed_404_page(self, mocker):
+        """A page with 404 indicators and no sections should return NOT_INDEXED."""
+        page = make_wiki_page(
+            raw_text="404 This page doesn\u2019t exist Try heading back to "
+                     "the homepage Need to request a repo?",
+            sections=[],
+        )
+        mocker.patch(_HELPERS_FETCH, return_value=page)
+
+        from codewiki_mcp.tools.topics import register
+        from mcp.server.fastmcp import FastMCP
+
+        mcp = FastMCP("test")
+        register(mcp)
+
+        fn = mcp._tool_manager._tools["codewiki_list_topics"].fn
+        result = fn(repo_url="Snowflake-Labs/agent-world-model")
+        parsed = json.loads(result)
+        assert parsed["status"] == "error"
+        assert parsed["code"] == "NOT_INDEXED"
+        assert "not yet indexed" in parsed["message"].lower()
+
+    def test_structure_not_indexed_404_page(self, mocker):
+        """Structure tool should also return NOT_INDEXED for 404 pages."""
+        page = make_wiki_page(
+            raw_text="404 This page doesn't exist",
+            sections=[],
+        )
+        mocker.patch(_HELPERS_FETCH, return_value=page)
+
+        from codewiki_mcp.tools.structure import register
+        from mcp.server.fastmcp import FastMCP
+
+        mcp = FastMCP("test")
+        register(mcp)
+
+        fn = mcp._tool_manager._tools["codewiki_read_structure"].fn
+        result = fn(repo_url="Snowflake-Labs/agent-world-model")
+        parsed = json.loads(result)
+        assert parsed["status"] == "error"
+        assert parsed["code"] == "NOT_INDEXED"
+
+    def test_contents_not_indexed_404_page(self, mocker):
+        """Contents tool should also return NOT_INDEXED for 404 pages."""
+        page = make_wiki_page(
+            raw_text="This page doesn\u2019t exist",
+            sections=[],
+        )
+        mocker.patch(_HELPERS_FETCH, return_value=page)
+
+        from codewiki_mcp.tools.contents import register
+        from mcp.server.fastmcp import FastMCP
+
+        mcp = FastMCP("test")
+        register(mcp)
+
+        fn = mcp._tool_manager._tools["codewiki_read_contents"].fn
+        result = fn(repo_url="Snowflake-Labs/agent-world-model")
+        parsed = json.loads(result)
+        assert parsed["status"] == "error"
+        assert parsed["code"] == "NOT_INDEXED"
+
+    def test_not_indexed_vs_no_content(self, mocker):
+        """Empty raw_text + empty sections = NO_CONTENT (not NOT_INDEXED)."""
+        page = make_wiki_page(raw_text="", sections=[])
+        mocker.patch(_HELPERS_FETCH, return_value=page)
+
+        from codewiki_mcp.tools.topics import register
+        from mcp.server.fastmcp import FastMCP
+
+        mcp = FastMCP("test")
+        register(mcp)
+
+        fn = mcp._tool_manager._tools["codewiki_list_topics"].fn
+        result = fn(repo_url="microsoft/vscode")
+        parsed = json.loads(result)
+        assert parsed["status"] == "error"
+        assert parsed["code"] == "NO_CONTENT"
+
+    def test_indexed_page_not_flagged(self, mocker):
+        """A real indexed page should NOT be flagged as NOT_INDEXED."""
+        page = make_wiki_page()  # default page with sections
+        mocker.patch(_HELPERS_FETCH, return_value=page)
+
+        from codewiki_mcp.tools.topics import register
+        from mcp.server.fastmcp import FastMCP
+
+        mcp = FastMCP("test")
+        register(mcp)
+
+        fn = mcp._tool_manager._tools["codewiki_list_topics"].fn
+        result = fn(repo_url="microsoft/vscode")
+        parsed = json.loads(result)
+        assert parsed["status"] == "ok"
+
+
+# ---------------------------------------------------------------------------
+# codewiki_request_indexing tool
+# ---------------------------------------------------------------------------
+class TestRequestIndexingTool:
+    """Test the codewiki_request_indexing tool."""
+
+    def test_tool_registered(self):
+        """Verify codewiki_request_indexing is registered on server creation."""
+        mcp = create_server()
+        assert mcp is not None
+
+    def test_returns_confirmation_on_success(self, mocker):
+        """Mock _run_request_indexing to simulate a successful submission."""
+        from codewiki_mcp.types import ResponseMeta, ResponseStatus, ErrorCode as EC, ToolResponse
+
+        mock_response = ToolResponse(
+            status=ResponseStatus.OK,
+            code=EC.NOT_INDEXED,
+            data=(
+                "**Indexing request submitted successfully** for "
+                "**https://github.com/Snowflake-Labs/agent-world-model**.\n\n"
+                "Google CodeWiki confirmed: *\"Repo requested\"*\n\n"
+                "Check back later at: https://codewiki.google/github.com/"
+                "Snowflake-Labs/agent-world-model"
+            ),
+            repo_url="https://github.com/Snowflake-Labs/agent-world-model",
+            meta=ResponseMeta(char_count=200),
+        )
+        mocker.patch(
+            "codewiki_mcp.tools.request_indexing._run_request_indexing",
+            return_value=mock_response,
+        )
+
+        from codewiki_mcp.tools.request_indexing import register
+        from mcp.server.fastmcp import FastMCP
+
+        mcp = FastMCP("test")
+        register(mcp)
+
+        fn = mcp._tool_manager._tools["codewiki_request_indexing"].fn
+        result = fn(repo_url="Snowflake-Labs/agent-world-model")
+        parsed = json.loads(result)
+        assert parsed["status"] == "ok"
+        assert parsed["code"] == "NOT_INDEXED"
+        assert "indexing request submitted" in parsed["data"].lower()
+        assert "codewiki.google" in parsed["data"]
+
+    def test_validation_error(self):
+        from codewiki_mcp.tools.request_indexing import register
+        from mcp.server.fastmcp import FastMCP
+
+        mcp = FastMCP("test")
+        register(mcp)
+
+        fn = mcp._tool_manager._tools["codewiki_request_indexing"].fn
+        result = fn(repo_url="bad")
+        parsed = json.loads(result)
+        assert parsed["status"] == "error"
+        assert parsed["code"] == "VALIDATION"
+
+    def test_returns_repo_url(self, mocker):
+        from codewiki_mcp.types import ResponseMeta, ResponseStatus, ErrorCode as EC, ToolResponse
+
+        mock_response = ToolResponse(
+            status=ResponseStatus.OK,
+            code=EC.NOT_INDEXED,
+            data="Submitted request for fastapi/fastapi",
+            repo_url="https://github.com/fastapi/fastapi",
+            meta=ResponseMeta(char_count=40),
+        )
+        mocker.patch(
+            "codewiki_mcp.tools.request_indexing._run_request_indexing",
+            return_value=mock_response,
+        )
+
+        from codewiki_mcp.tools.request_indexing import register
+        from mcp.server.fastmcp import FastMCP
+
+        mcp = FastMCP("test")
+        register(mcp)
+
+        fn = mcp._tool_manager._tools["codewiki_request_indexing"].fn
+        result = fn(repo_url="fastapi/fastapi")
+        parsed = json.loads(result)
+        assert parsed["repo_url"] == "https://github.com/fastapi/fastapi"
+
+    def test_handles_driver_error(self, mocker):
+        """Simulate a Playwright failure during submission."""
+        from codewiki_mcp.types import ErrorCode as EC, ToolResponse
+
+        mock_response = ToolResponse.error(
+            EC.DRIVER_ERROR,
+            "Playwright error during indexing request: browser crashed",
+            repo_url="https://github.com/some/repo",
+        )
+        mocker.patch(
+            "codewiki_mcp.tools.request_indexing._run_request_indexing",
+            return_value=mock_response,
+        )
+
+        from codewiki_mcp.tools.request_indexing import register
+        from mcp.server.fastmcp import FastMCP
+
+        mcp = FastMCP("test")
+        register(mcp)
+
+        fn = mcp._tool_manager._tools["codewiki_request_indexing"].fn
+        result = fn(repo_url="some/repo")
+        parsed = json.loads(result)
+        assert parsed["status"] == "error"
+        assert parsed["code"] == "DRIVER_ERROR"

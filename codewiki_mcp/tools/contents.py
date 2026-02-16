@@ -1,4 +1,4 @@
-"""read_wiki_contents tool — View full or section-specific documentation.
+"""codewiki_read_contents tool — View full or section-specific documentation.
 
 Uses Playwright to render the JS SPA, then BeautifulSoup to parse content.
 Supports pagination to avoid overwhelming the context window.
@@ -25,10 +25,10 @@ logger = logging.getLogger("CodeWiki")
 
 
 def register(mcp: FastMCP) -> None:
-    """Register the read_wiki_contents tool on the MCP server."""
+    """Register the codewiki_read_contents tool on the MCP server."""
 
     @mcp.tool()
-    def read_wiki_contents(
+    def codewiki_read_contents(
         repo_url: str,
         section_title: str = "",
         offset: int = 0,
@@ -40,7 +40,7 @@ def register(mcp: FastMCP) -> None:
         Without ``section_title``, returns the full wiki content (may be truncated).
         With ``section_title``, returns just that section's content.
 
-        Use ``read_wiki_structure`` first to see available sections.
+        Use ``codewiki_read_structure`` first to see available sections.
 
         **Pagination** (when ``section_title`` is empty):
         - ``offset`` — section index to start from (default 0).
@@ -64,7 +64,7 @@ def register(mcp: FastMCP) -> None:
         """
         start = time.monotonic()
         logger.info(
-            "read_wiki_contents — repo: %s, section: %s, offset: %d, limit: %d",
+            "codewiki_read_contents — repo: %s, section: %s, offset: %d, limit: %d",
             repo_url,
             section_title,
             offset,

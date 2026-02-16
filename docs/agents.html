@@ -22,7 +22,7 @@
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6c63ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8M8 11h6"/></svg>
       CodeWiki MCP
     </div>
-    <span class="version">v1.0.4</span>
+    <span class="version">v1.1.0</span>
   </div>
   <nav>
     <div class="nav-section">Overview</div>
@@ -83,7 +83,7 @@
 
     <!-- Overview -->
     <h2>Overview</h2>
-    <p>CodeWiki MCP turns any LLM agent into a <strong>codebase-aware assistant</strong>. By wiring the 4 MCP tools into your agent's tool belt, it can autonomously explore repository documentation, understand architecture, and answer deep technical questions — all grounded in Google CodeWiki's AI-generated knowledge.</p>
+    <p>CodeWiki MCP turns any LLM agent into a <strong>codebase-aware assistant</strong>. By wiring the 5 MCP tools into your agent's tool belt, it can autonomously explore repository documentation, understand architecture, and answer deep technical questions — all grounded in Google CodeWiki's AI-generated knowledge.</p>
 
     <h2>Skill Definition</h2>
     <p>A <strong>skill</strong> tells your agent <em>when</em> and <em>how</em> to use CodeWiki MCP tools. Use this as a reusable building block in any agent framework.</p>
@@ -104,29 +104,30 @@ Triggers:
   - User asks to find where something is implemented
 
 Available Tools:
-  1. read_wiki_structure    — Get the table of contents (JSON, cheapest)
-  2. list_code_wiki_topics  — Titles + short previews (lightweight)
-  3. read_wiki_contents     — Read paginated or section-specific docs
-  4. search_code_wiki       — Ask Gemini a question about the repo
+  1. codewiki_read_structure    — Get the table of contents (JSON, cheapest)
+  2. codewiki_list_topics  — Titles + short previews (lightweight)
+  3. codewiki_read_contents     — Read paginated or section-specific docs
+  4. codewiki_search_wiki       — Ask Gemini a question about the repo
+  5. codewiki_request_indexing  — Submit unindexed repos for indexing
 
 Recommended Workflow (token-efficient):
-  1. Start with read_wiki_structure — returns structured JSON TOC
+  1. Start with codewiki_read_structure — returns structured JSON TOC
      (smallest response, ~500-1000 tokens)
-  2. If you need more context, call list_code_wiki_topics for
+  2. If you need more context, call codewiki_list_topics for
      titles with preview snippets (~2000-3000 tokens)
-  3. Use read_wiki_contents with section_title for targeted reads
+  3. Use codewiki_read_contents with section_title for targeted reads
      (only retrieves the section you need)
-  4. Use read_wiki_contents with offset/limit to paginate through
+  4. Use codewiki_read_contents with offset/limit to paginate through
      remaining sections as needed
-  5. Use search_code_wiki only for specific questions that can't
+  5. Use codewiki_search_wiki only for specific questions that can't
      be answered by reading sections directly
 
 Anti-patterns to avoid:
-  - Don't call list_code_wiki_topics AND read_wiki_contents
+  - Don't call codewiki_list_topics AND codewiki_read_contents
     without section_title — they return overlapping data
-  - Don't skip read_wiki_structure — it's the cheapest way to
+  - Don't skip codewiki_read_structure — it's the cheapest way to
     discover what sections exist
-  - Don't call search_code_wiki for broad overview questions —
+  - Don't call codewiki_search_wiki for broad overview questions —
     section reads are faster and more predictable
 
 Input Format:
@@ -151,20 +152,21 @@ repositories by exploring their documentation and answering
 technical questions.
 
 ## Tools Available (ordered by token efficiency)
-- read_wiki_structure(repo_url) — Get JSON table of contents (cheapest)
-- list_code_wiki_topics(repo_url) — Get titles + short previews
-- read_wiki_contents(repo_url, section_title?, offset?, limit?) — Read docs
-- search_code_wiki(repo_url, query) — Ask Gemini about the repo
+- codewiki_read_structure(repo_url) — Get JSON table of contents (cheapest)
+- codewiki_list_topics(repo_url) — Get titles + short previews
+- codewiki_read_contents(repo_url, section_title?, offset?, limit?) — Read docs
+- codewiki_search_wiki(repo_url, query) — Ask Gemini about the repo
+- codewiki_request_indexing(repo_url) — Submit unindexed repos for indexing
 
 ## Workflow
 When a user asks about a repository:
-1. Call read_wiki_structure to get the section list (cheapest).
+1. Call codewiki_read_structure to get the section list (cheapest).
 2. If you need more context on what sections cover, call
-   list_code_wiki_topics (titles + 200-char previews).
+   codewiki_list_topics (titles + 200-char previews).
 3. Based on the user's question, either:
-   a. Call read_wiki_contents with the relevant section_title, or
-   b. Call read_wiki_contents with offset/limit to page through.
-4. Use search_code_wiki only for specific technical questions
+   a. Call codewiki_read_contents with the relevant section_title, or
+   b. Call codewiki_read_contents with offset/limit to page through.
+4. Use codewiki_search_wiki only for specific technical questions
    that sections don't answer.
 5. Synthesize the results into a clear, accurate answer.
 6. If the first answer is incomplete, make additional targeted calls.
@@ -172,11 +174,13 @@ When a user asks about a repository:
 ## Rules
 - Always cite which section or tool response your answer is based on.
 - If CodeWiki has no content for a repo, tell the user honestly.
+- If a tool returns NOT_INDEXED, call codewiki_request_indexing to submit,
+  then inform the user the repo is not yet indexed.
 - Use owner/repo shorthand (e.g., "microsoft/vscode") for repo_url.
 - Never fabricate information — only report what tools return.
-- For architecture questions, prefer read_wiki_contents with section.
-- For specific implementation questions, prefer search_code_wiki.
-- Avoid calling list_code_wiki_topics AND read_wiki_contents without
+- For architecture questions, prefer codewiki_read_contents with section.
+- For specific implementation questions, prefer codewiki_search_wiki.
+- Avoid calling codewiki_list_topics AND codewiki_read_contents without
   a section_title in the same conversation — they overlap.</code></pre>
     </div>
 
@@ -189,20 +193,21 @@ from an open-source dependency or upstream project, you help them
 understand the codebase context using Google CodeWiki.
 
 ## Tools Available
-- list_code_wiki_topics(repo_url)
-- read_wiki_structure(repo_url)
-- read_wiki_contents(repo_url, section_title?)
-- search_code_wiki(repo_url, query)
+- codewiki_list_topics(repo_url)
+- codewiki_read_structure(repo_url)
+- codewiki_read_contents(repo_url, section_title?)
+- codewiki_search_wiki(repo_url, query)
+- codewiki_request_indexing(repo_url)
 
 ## Workflow
 When a developer asks about code they're reviewing:
 1. Identify the repository from the context or ask.
-2. Call read_wiki_structure to map the project layout.
-3. Use search_code_wiki to answer specific questions like:
+2. Call codewiki_read_structure to map the project layout.
+3. Use codewiki_search_wiki to answer specific questions like:
    - "What does this module do?"
    - "How is this function used?"
    - "What's the design pattern here?"
-4. Use read_wiki_contents for broader architectural context.
+4. Use codewiki_read_contents for broader architectural context.
 5. Present findings as concise review notes.
 
 ## Tone
@@ -221,19 +226,20 @@ mapping out how open-source projects are structured, what patterns
 they use, and how their components interact.
 
 ## Tools Available
-- list_code_wiki_topics(repo_url)
-- read_wiki_structure(repo_url)
-- read_wiki_contents(repo_url, section_title?)
-- search_code_wiki(repo_url, query)
+- codewiki_list_topics(repo_url)
+- codewiki_read_structure(repo_url)
+- codewiki_read_contents(repo_url, section_title?)
+- codewiki_search_wiki(repo_url, query)
+- codewiki_request_indexing(repo_url)
 
 ## Workflow
 When asked to explain a project's architecture:
-1. Call list_code_wiki_topics for the high-level overview.
-2. Call read_wiki_structure to get all sections.
-3. Read architecture-related sections via read_wiki_contents:
+1. Call codewiki_list_topics for the high-level overview.
+2. Call codewiki_read_structure to get all sections.
+3. Read architecture-related sections via codewiki_read_contents:
    - Look for sections with titles containing "architecture",
      "design", "overview", "structure", or "components".
-4. For specific component questions, use search_code_wiki.
+4. For specific component questions, use codewiki_search_wiki.
 5. Produce a structured architecture summary:
    - Key components and their roles
    - Data flow between components
@@ -258,18 +264,19 @@ and compare open-source projects by researching their documentation
 via Google CodeWiki.
 
 ## Tools Available
-- list_code_wiki_topics(repo_url)
-- read_wiki_structure(repo_url)
-- read_wiki_contents(repo_url, section_title?)
-- search_code_wiki(repo_url, query)
+- codewiki_list_topics(repo_url)
+- codewiki_read_structure(repo_url)
+- codewiki_read_contents(repo_url, section_title?)
+- codewiki_search_wiki(repo_url, query)
+- codewiki_request_indexing(repo_url)
 
 ## Workflow
 When asked to compare repositories:
-1. For each repo, call list_code_wiki_topics for overview.
-2. For each repo, call read_wiki_structure to map sections.
+1. For each repo, call codewiki_list_topics for overview.
+2. For each repo, call codewiki_read_structure to map sections.
 3. Identify comparable dimensions (architecture, features,
    patterns, dependencies, testing approach).
-4. Use read_wiki_contents and search_code_wiki to gather
+4. Use codewiki_read_contents and codewiki_search_wiki to gather
    details on each dimension for each repo.
 5. Present a structured comparison.
 
@@ -290,22 +297,22 @@ Follow with detailed analysis of trade-offs.</code></pre>
     <div class="tool-card">
       <h3>Example: "How does VS Code handle extension activation?"</h3>
       <pre><code># Step 1: Agent discovers topics
-→ list_code_wiki_topics(repo_url="microsoft/vscode")
+→ codewiki_list_topics(repo_url="microsoft/vscode")
 ← Returns: overview of VS Code documentation topics
 
 # Step 2: Agent gets structure to find relevant section
-→ read_wiki_structure(repo_url="microsoft/vscode")
+→ codewiki_read_structure(repo_url="microsoft/vscode")
 ← Returns: JSON array of section titles
 
 # Step 3: Agent reads the relevant section
-→ read_wiki_contents(
+→ codewiki_read_contents(
     repo_url="microsoft/vscode",
     section_title="Extension Activation"
   )
 ← Returns: detailed documentation about activation events
 
 # Step 4: Agent asks a follow-up question for specifics
-→ search_code_wiki(
+→ codewiki_search_wiki(
     repo_url="microsoft/vscode",
     query="How does the extension host process manage
            activation events and lazy loading?"
@@ -398,7 +405,7 @@ codewiki-mcp --sse --port 8080
     <p>Teach your agent to handle CodeWiki MCP errors gracefully:</p>
     <pre><code># In your agent's tool-call handler:
 
-result = call_mcp_tool("search_code_wiki", {
+result = call_mcp_tool("codewiki_search_wiki", {
     "repo_url": repo,
     "query": question
 })
@@ -409,10 +416,15 @@ if response["status"] == "error":
     code = response.get("code", "UNKNOWN")
 
     if code == "TIMEOUT":
-        # Retry once, or fall back to read_wiki_contents
+        # Retry once, or fall back to codewiki_read_contents
         pass
     elif code == "NO_CONTENT":
         # Repo may not be indexed — inform the user
+        pass
+    elif code == "NOT_INDEXED":
+        # Repo is not yet in CodeWiki — submit for indexing
+        call_mcp_tool("codewiki_request_indexing", {"repo_url": repo})
+        # Inform user: repo submitted, check back later
         pass
     elif code == "RATE_LIMIT":
         # Wait and retry, or switch to cached tools
@@ -432,20 +444,21 @@ if response["status"] == "error":
     <table>
       <thead><tr><th>Tool</th><th>Typical Tokens</th><th>Use For</th></tr></thead>
       <tbody>
-        <tr><td><code>read_wiki_structure</code></td><td>500–1,500</td><td>Table of contents / discovery</td></tr>
-        <tr><td><code>list_code_wiki_topics</code></td><td>2,000–4,000</td><td>Titles + content previews</td></tr>
-        <tr><td><code>read_wiki_contents</code> (section)</td><td>500–5,000</td><td>Targeted section content</td></tr>
-        <tr><td><code>read_wiki_contents</code> (paginated)</td><td>3,000–8,000</td><td>Multiple sections at once</td></tr>
-        <tr><td><code>search_code_wiki</code></td><td>1,000–6,000</td><td>Specific questions</td></tr>
+        <tr><td><code>codewiki_read_structure</code></td><td>500–1,500</td><td>Table of contents / discovery</td></tr>
+        <tr><td><code>codewiki_list_topics</code></td><td>2,000–4,000</td><td>Titles + content previews</td></tr>
+        <tr><td><code>codewiki_read_contents</code> (section)</td><td>500–5,000</td><td>Targeted section content</td></tr>
+        <tr><td><code>codewiki_read_contents</code> (paginated)</td><td>3,000–8,000</td><td>Multiple sections at once</td></tr>
+        <tr><td><code>codewiki_search_wiki</code></td><td>1,000–6,000</td><td>Specific questions</td></tr>
+        <tr><td><code>codewiki_request_indexing</code></td><td>200–500</td><td>Submit unindexed repos</td></tr>
       </tbody>
     </table>
 
     <h3>Best Token-Efficiency Workflow</h3>
     <ol>
-      <li>Start with <code>read_wiki_structure</code> (cheapest, ~800 tokens)</li>
-      <li>Read only the sections you need with <code>read_wiki_contents(section_title=...)</code></li>
+      <li>Start with <code>codewiki_read_structure</code> (cheapest, ~800 tokens)</li>
+      <li>Read only the sections you need with <code>codewiki_read_contents(section_title=...)</code></li>
       <li>Use pagination (<code>offset</code>/<code>limit</code>) to avoid loading the entire wiki</li>
-      <li>Reserve <code>search_code_wiki</code> for questions that sections can't answer</li>
+      <li>Reserve <code>codewiki_search_wiki</code> for questions that sections can't answer</li>
     </ol>
 
     <h2>Model Selection & Credit Optimization</h2>
@@ -469,17 +482,17 @@ if response["status"] == "error":
       <h3>Multi-Model Workflow</h3>
       <pre><code># Phase 1: Discovery (use free/cheap model)
 # → GPT-4.1 or Gemini Flash
-read_wiki_structure("owner/repo")       # ~800 tokens
-list_code_wiki_topics("owner/repo")     # ~3000 tokens
+codewiki_read_structure("owner/repo")       # ~800 tokens
+codewiki_list_topics("owner/repo")     # ~3000 tokens
 
 # Phase 2: Targeted reading (use free/cheap model)
 # → GPT-4.1 or Gemini Flash
-read_wiki_contents("owner/repo",
+codewiki_read_contents("owner/repo",
     section_title="Architecture")
 
 # Phase 3: Deep analysis (use capable model)
 # → Claude Sonnet 4 or GPT-4.1
-search_code_wiki("owner/repo",
+codewiki_search_wiki("owner/repo",
     query="How does the event loop handle...")</code></pre>
     </div>
 
@@ -488,7 +501,7 @@ search_code_wiki("owner/repo",
       <thead><tr><th>Tip</th><th>Savings</th></tr></thead>
       <tbody>
         <tr><td>Use GPT-4.1 for routine CodeWiki lookups</td><td>0 credits per request (free on paid plans)</td></tr>
-        <tr><td>Use <code>read_wiki_structure</code> first to avoid unnecessary calls</td><td>~5,000-10,000 tokens saved per skipped tool call</td></tr>
+        <tr><td>Use <code>codewiki_read_structure</code> first to avoid unnecessary calls</td><td>~5,000-10,000 tokens saved per skipped tool call</td></tr>
         <tr><td>Use <code>section_title</code> parameter instead of reading full pages</td><td>70-90% fewer tokens per call</td></tr>
         <tr><td>Use pagination with small <code>limit</code> values</td><td>Read only what you need, not everything</td></tr>
         <tr><td>Leverage caching — repeated calls within 5 min are free</td><td>Eliminates redundant Playwright renders</td></tr>

@@ -53,7 +53,7 @@ class RepoInput(BaseModel):
 
 
 class SearchInput(RepoInput):
-    """Input for the search_code_wiki tool."""
+    """Input for the codewiki_search_wiki tool."""
 
     query: str = Field(
         ...,
@@ -70,7 +70,7 @@ class SearchInput(RepoInput):
 
 
 class TopicsInput(RepoInput):
-    """Input for the list_code_wiki_topics tool."""
+    """Input for the codewiki_list_topics tool."""
 
     # Only repo_url needed — no extra fields.
 
@@ -93,7 +93,7 @@ class SectionInput(RepoInput):
 
 
 class ContentsInput(RepoInput):
-    """Input for the read_wiki_contents tool (with optional pagination)."""
+    """Input for the codewiki_read_contents tool (with optional pagination)."""
 
     section_title: str = Field(
         default="",
@@ -126,6 +126,7 @@ class ErrorCode(str, Enum):
     TIMEOUT = "TIMEOUT"
     DRIVER_ERROR = "DRIVER_ERROR"
     NO_CONTENT = "NO_CONTENT"
+    NOT_INDEXED = "NOT_INDEXED"
     INPUT_NOT_FOUND = "INPUT_NOT_FOUND"
     INTERNAL = "INTERNAL"
     RETRY_EXHAUSTED = "RETRY_EXHAUSTED"

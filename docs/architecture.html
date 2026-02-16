@@ -22,7 +22,7 @@
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6c63ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8M8 11h6"/></svg>
       CodeWiki MCP
     </div>
-    <span class="version">v1.0.4</span>
+    <span class="version">v1.1.0</span>
   </div>
   <nav>
     <div class="nav-section">Overview</div>
@@ -108,7 +108,7 @@
       <li><code>run_in_browser_loop(coro)</code> — submits async work to the persistent loop from any sync context</li>
       <li><code>fetch_rendered_html(url)</code> — navigates, waits for SPA content markers, returns the rendered HTML</li>
     </ul>
-    <p>All 4 tools share the same browser instance. Pages are cached in a TTLCache (5 min by default) so repeated requests skip the render entirely.</p>
+    <p>All 5 tools share the same browser instance. Pages are cached in a TTLCache (5 min by default) so repeated requests skip the render entirely.</p>
 
     <h2>SPA-Aware Parser</h2>
     <p>CodeWiki uses custom Angular elements instead of standard HTML:</p>
@@ -150,7 +150,7 @@
     <p>Diagram summaries (entities + relationships) are placed at the top of tool output so they remain visible even when responses are truncated.</p>
 
     <h2>Session Pool <small>(v1.0.2+)</small></h2>
-    <p><code>session_pool.py</code> maintains an LRU pool of <strong>warm browser contexts</strong> for the <code>search_code_wiki</code> tool. Instead of creating a fresh Playwright context for every chat query, the pool keeps recently-used contexts alive with their pages already loaded.</p>
+    <p><code>session_pool.py</code> maintains an LRU pool of <strong>warm browser contexts</strong> for the <code>codewiki_search_wiki</code> tool. Instead of creating a fresh Playwright context for every chat query, the pool keeps recently-used contexts alive with their pages already loaded.</p>
     <ul>
       <li><code>_get_or_create(url)</code> — returns a warm session or creates a new one; navigates to the page and opens the chat panel</li>
       <li><code>_release(url, broken)</code> — returns a session to the pool (or destroys it if marked broken)</li>
@@ -209,10 +209,11 @@
 └── tools/
     ├── __init__.py    # Tool registration
     ├── _helpers.py    # Shared URL construction + error handling
-    ├── contents.py    # read_wiki_contents (paginated)
-    ├── search.py      # search_code_wiki (Playwright chat interaction)
-    ├── structure.py   # read_wiki_structure
-    └── topics.py      # list_code_wiki_topics (with previews)
+    ├── contents.py    # codewiki_read_contents (paginated)
+    ├── request_indexing.py # codewiki_request_indexing (Playwright form submission)
+    ├── search.py      # codewiki_search_wiki (Playwright chat interaction)
+    ├── structure.py   # codewiki_read_structure
+    └── topics.py      # codewiki_list_topics (with previews)
 tests/
 ├── conftest.py        # Shared fixtures + sample data
 ├── test_cache.py      # Cache layer tests
@@ -227,7 +228,7 @@ Dockerfile             # Docker deployment</code></pre>
     <h2>Running Tests</h2>
     <pre><code>pip install -e ".[test]"
 pytest tests/ -v</code></pre>
-    <p>151 tests covering cache, config, parser, stealth, tools, types, dedup, rate limiting, and idempotency.</p>
+    <p>161 tests covering cache, config, parser, stealth, tools, types, dedup, rate limiting, and idempotency.</p>
   </div>
 </main>
 
