@@ -98,26 +98,29 @@
     <p>This project ships with <strong>5 production-tested agent definitions</strong> in <code>.github/agents/</code> that work with GitHub Copilot's custom agent system. The architecture uses a <strong>master orchestrator</strong> that routes requests to 4 specialist subagents.</p>
 
     <h3>Architecture Diagram</h3>
-    <div class="tool-card" style="text-align:center; padding: 2rem;">
-      <pre style="text-align:left; display:inline-block; font-size: 0.85rem; line-height: 1.6;"><code>                  ┌──────────────────┐
-    @codewiki ──▶  │  CodeWiki Master  │
-                  │   (orchestrator)  │
-                  └────────┬─────────┘
-                           │
-              ┌────────────┼────────────┐
-              │            │            │
-     ┌────────▼───┐  ┌────▼─────┐  ┌──▼──────────┐
-     │ Researcher  │  │ Reviewer │  │  Architect   │
-     │ (general)   │  │ (code)   │  │  (design)    │
-     └─────────────┘  └──────────┘  └──────────────┘
-              │
-     ┌────────▼──────┐
-     │  Comparison   │
-     │  (multi-repo) │
-     └───────────────┘
+    <div class="tool-card" style="padding: 1.5rem;">
+      <pre class="mermaid">
+flowchart TD
+    User(["👤 @codewiki"]) --> Master["🎯 CodeWiki Master\n(orchestrator)"]
 
-  Master tools: codewiki_list_topics, codewiki_request_indexing, agent
-  Subagent tools: all 5 codewiki_* tools (read-only access)</code></pre>
+    Master -->|"general questions"| Researcher["🔍 Researcher\n(general exploration)"]
+    Master -->|"code-level questions"| Reviewer["📝 Code Review\n(module/function analysis)"]
+    Master -->|"design questions"| Architect["🏗️ Architecture Explorer\n(system design)"]
+    Master -->|"multi-repo questions"| Comparison["⚖️ Comparison\n(side-by-side analysis)"]
+    Master -->|"NOT_INDEXED"| Indexing["📥 Request Indexing\n(handled directly)"]
+
+    style Master fill:#6c63ff,stroke:#5a52d5,color:#fff
+    style Researcher fill:#1e293b,stroke:#6c63ff,color:#e2e8f0
+    style Reviewer fill:#1e293b,stroke:#6c63ff,color:#e2e8f0
+    style Architect fill:#1e293b,stroke:#6c63ff,color:#e2e8f0
+    style Comparison fill:#1e293b,stroke:#6c63ff,color:#e2e8f0
+    style Indexing fill:#1e293b,stroke:#f59e0b,color:#e2e8f0
+    style User fill:#0f172a,stroke:#6c63ff,color:#e2e8f0
+      </pre>
+      <p style="margin-top: 1rem; font-size: 0.85rem; color: #94a3b8;">
+        <strong>Master tools:</strong> <code>codewiki_list_topics</code>, <code>codewiki_request_indexing</code>, <code>agent</code><br>
+        <strong>Subagent tools:</strong> all 5 <code>codewiki_*</code> tools
+      </p>
     </div>
 
     <h3>Key Design Decisions</h3>
@@ -592,5 +595,22 @@ if response["status"] == "error":
 </main>
 
 <script src="app.js"></script>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: {
+      primaryColor: '#6c63ff',
+      primaryTextColor: '#e2e8f0',
+      primaryBorderColor: '#5a52d5',
+      lineColor: '#6c63ff',
+      secondaryColor: '#1e293b',
+      tertiaryColor: '#0f172a',
+      fontFamily: 'Inter, sans-serif',
+      fontSize: '14px'
+    }
+  });
+</script>
 </body>
 </html>
