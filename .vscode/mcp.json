@@ -1,0 +1,8 @@
+{
+  "servers": {
+    "codewiki-mcp": {
+      "type": "stdio",
+      "command": "codewiki-mcp"
+    }
+  }
+}

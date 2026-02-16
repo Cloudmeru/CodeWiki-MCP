@@ -34,7 +34,7 @@ Or add to `.vscode/mcp.json`:
 ```json
 {
   "servers": {
-    "codewikiMcp": {
+    "codewiki-mcp": {
       "type": "stdio",
       "command": "codewiki-mcp"
     }
