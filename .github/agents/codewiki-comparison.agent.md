@@ -2,6 +2,7 @@
 name: CodeWiki Comparison
 description: Compares multiple open-source repositories side-by-side
 argument-hint: Two or more repos to compare, e.g., "Compare fastapi/fastapi vs pallets/flask"
+model: GPT-5 Mini (copilot)
 tools:
   - 'codewiki-mcp/codewiki_list_topics'
   - 'codewiki-mcp/codewiki_read_structure'

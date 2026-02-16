@@ -2,6 +2,7 @@
 name: CodeWiki
 description: Master agent that routes your request to the right CodeWiki specialist
 argument-hint: Any question about open-source repos, e.g., "Explain React's architecture" or "Compare Express vs Fastify"
+model: GPT-5 Mini (copilot)
 tools:
   - 'agent'
   - 'codewiki-mcp/codewiki_list_topics'

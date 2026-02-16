@@ -2,6 +2,7 @@
 name: CodeWiki Architecture Explorer
 description: Maps and explains project architectures from open-source repositories
 argument-hint: A repo to explore, e.g., "Explain the architecture of facebook/react"
+model: GPT-5 Mini (copilot)
 tools:
   - 'codewiki-mcp/codewiki_list_topics'
   - 'codewiki-mcp/codewiki_read_structure'

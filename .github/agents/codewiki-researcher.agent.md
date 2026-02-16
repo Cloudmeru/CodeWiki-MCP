@@ -2,6 +2,7 @@
 name: CodeWiki Researcher
 description: Explores open-source codebases using Google CodeWiki
 argument-hint: A repository to explore, e.g., "microsoft/vscode" or a question about a repo
+model: GPT-5 Mini (copilot)
 tools:
   - 'codewiki-mcp/codewiki_list_topics'
   - 'codewiki-mcp/codewiki_read_structure'
