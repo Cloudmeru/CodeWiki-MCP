@@ -5,6 +5,7 @@ argument-hint: A repo to explore, e.g., "Explain the architecture of facebook/re
 model: GPT-5 Mini (copilot)
 user-invokable: false
 tools:
+  - 'read'
   - 'codewiki-mcp/codewiki_list_topics'
   - 'codewiki-mcp/codewiki_read_structure'
   - 'codewiki-mcp/codewiki_read_contents'

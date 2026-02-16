@@ -47,33 +47,24 @@ Analyze the user's request and delegate to the right subagent:
 ## Workflow
 
 1. **Classify** the user's intent from their message.
-2. **Pre-check** (recommended): Call `codewiki_list_topics` for the repo(s)
-   mentioned in the request. This serves two purposes:
+2. **Check availability**: Call `codewiki_list_topics` for the repo(s)
+   mentioned in the request. This is ONLY to detect `NOT_INDEXED` repos:
    - If it returns `NOT_INDEXED`, call `codewiki_request_indexing` and
-     inform the user before any delegation.
-   - If it succeeds, **include the topic listing in the subagent prompt**
-     so the subagent doesn't need to re-fetch it (saves a round trip).
-3. **Delegate** to the chosen subagent with a clear, focused task prompt that
-   includes:
+     inform the user. Do NOT delegate — there's no content to explore.
+   - If it succeeds, proceed to step 3 (do NOT pass the topic listing
+     to the subagent — it has its own tools and will fetch what it needs).
+3. **Delegate** to the chosen subagent with a clear, focused prompt:
    - The repo URL (owner/repo format)
    - The specific question to answer
-   - The pre-fetched topic listing from step 2 (if available)
-   - Example delegation prompt:
-     ```
-     Research facebook/prophet — explain what it is and its main features.
-     Repo: facebook/prophet
-     Here are the available CodeWiki topics (pre-fetched):
-     <paste codewiki_list_topics output>
-     Use codewiki_read_contents and codewiki_search_wiki to get detailed
-     information from the sections most relevant to the question.
-     ```
+   - Example: `"Explain what facebook/prophet is and its main features."`
+   - Do NOT include pre-fetched data — subagents are stateless and have
+     their own CodeWiki tools to discover and read documentation.
 4. **Synthesize**: When the subagent returns, present the result to the user.
    Add any additional context or follow-up suggestions.
 5. **Multi-step**: For complex requests that span multiple specialties,
-   run subagents sequentially or in parallel as appropriate:
+   run subagents sequentially as appropriate:
    - Example: "Explain React's architecture and compare it with Preact"
      → Run Architecture Explorer for React, then Comparison for React vs Preact.
-   - Pass the first subagent's output as context to the second if relevant.
 
 ## Rules
 

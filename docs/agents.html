@@ -109,17 +109,24 @@ flowchart TD
     Master -->|"multi-repo questions"| Comparison["⚖️ Comparison\n(side-by-side analysis)"]
     Master -->|"NOT_INDEXED"| Indexing["📥 Request Indexing\n(handled directly)"]
 
+    Skill["📚 SKILL.md\n(domain knowledge)"] -.->|"read on-demand"| Researcher
+    Skill -.->|"read on-demand"| Reviewer
+    Skill -.->|"read on-demand"| Architect
+    Skill -.->|"read on-demand"| Comparison
+
     style Master fill:#6c63ff,stroke:#5a52d5,color:#fff
     style Researcher fill:#1e293b,stroke:#6c63ff,color:#e2e8f0
     style Reviewer fill:#1e293b,stroke:#6c63ff,color:#e2e8f0
     style Architect fill:#1e293b,stroke:#6c63ff,color:#e2e8f0
     style Comparison fill:#1e293b,stroke:#6c63ff,color:#e2e8f0
     style Indexing fill:#1e293b,stroke:#f59e0b,color:#e2e8f0
+    style Skill fill:#1e293b,stroke:#10b981,color:#e2e8f0
     style User fill:#0f172a,stroke:#6c63ff,color:#e2e8f0
       </pre>
       <p style="margin-top: 1rem; font-size: 0.85rem; color: #94a3b8;">
         <strong>Master tools:</strong> <code>codewiki_list_topics</code>, <code>codewiki_request_indexing</code>, <code>agent</code><br>
-        <strong>Subagent tools:</strong> all 5 <code>codewiki_*</code> tools
+        <strong>Subagent tools:</strong> <code>read</code> + all 5 <code>codewiki_*</code> tools<br>
+        <strong>Skills:</strong> <code>.github/skills/codewiki-usage/SKILL.md</code> (loaded on-demand via <code>read</code>)
       </p>
     </div>
 
@@ -132,8 +139,8 @@ flowchart TD
           <td><code>codewiki_list_topics</code> (for availability checks) and <code>codewiki_request_indexing</code> (for unindexed repos). All read/search tools belong to subagents only — this forces delegation.</td>
         </tr>
         <tr>
-          <td><strong>Pre-fetch + context passing</strong></td>
-          <td>Master calls <code>codewiki_list_topics</code> first, then includes the result in the subagent prompt. This saves a round-trip and avoids duplicate tool calls.</td>
+          <td><strong>Stateless subagents</strong></td>
+          <td>Subagents fetch their own data independently using their own tools. The master only uses <code>codewiki_list_topics</code> for NOT_INDEXED detection — no topic data is passed to subagents.</td>
         </tr>
         <tr>
           <td><strong><code>user-invokable: false</code> on subagents</strong></td>
@@ -185,29 +192,28 @@ agents:
     <div class="tool-card">
       <h3>Master Workflow</h3>
       <pre><code>1. CLASSIFY the user's intent from their message
-2. PRE-CHECK: Call codewiki_list_topics for the repo(s) mentioned
+2. CHECK AVAILABILITY: Call codewiki_list_topics for the repo(s) mentioned
    - If NOT_INDEXED → call codewiki_request_indexing, inform user, stop
-   - If OK → save the topic listing for step 3
+   - If OK → proceed to step 3 (do NOT pass topics to subagent)
 3. DELEGATE to the chosen subagent via the `agent` tool:
    - Include the repo URL (owner/repo format)
    - Include the specific question to answer
-   - Include the pre-fetched topic listing from step 2
+   - Subagents are stateless and have their own tools — they will
+     fetch data independently
 4. SYNTHESIZE: Present the subagent's result to the user
 5. MULTI-STEP: For complex requests spanning specialties,
-   run subagents sequentially, passing earlier output as context
+   run subagents sequentially
 
 Example delegation prompt:
   "Research facebook/prophet — explain its main features.
    Repo: facebook/prophet
-   Here are the available CodeWiki topics (pre-fetched):
-   &lt;paste codewiki_list_topics output&gt;
-   Use codewiki_read_contents and codewiki_search_wiki to
-   get detailed information from the most relevant sections."</code></pre>
+   Use codewiki_read_structure, codewiki_read_contents, and
+   codewiki_search_wiki to get detailed information."</code></pre>
     </div>
 
     <!-- Specialist Subagents -->
     <h3 id="subagents">2. Specialist Subagents</h3>
-    <p>All 4 specialists share the same tool access (all 5 <code>codewiki_*</code> tools) but differ in their persona, workflow, and output format. All have <code>user-invokable: false</code>.</p>
+    <p>All 4 specialists share the same tool access (<code>read</code> + all 5 <code>codewiki_*</code> tools) but differ in their persona, workflow, and output format. All have <code>user-invokable: false</code>.</p>
 
     <div class="tool-card">
       <h3>2a. CodeWiki Researcher</h3>
@@ -218,6 +224,7 @@ description: Explores open-source codebases using Google CodeWiki
 model: GPT-5 Mini (copilot)
 user-invocable: false
 tools:
+  - 'read'
   - 'codewiki-mcp/codewiki_list_topics'
   - 'codewiki-mcp/codewiki_read_structure'
   - 'codewiki-mcp/codewiki_read_contents'
@@ -241,7 +248,7 @@ name: CodeWiki Code Review
 description: Helps developers understand unfamiliar codebases during code review
 model: GPT-5 Mini (copilot)
 user-invocable: false
-tools: [all 5 codewiki-mcp/* tools]
+tools: [read, all 5 codewiki-mcp/* tools]
 ---
 
 Focus: Code structure, patterns, implementation details.
@@ -257,7 +264,7 @@ name: CodeWiki Architecture Explorer
 description: Maps and explains project architectures
 model: GPT-5 Mini (copilot)
 user-invocable: false
-tools: [all 5 codewiki-mcp/* tools]
+tools: [read, all 5 codewiki-mcp/* tools]
 ---
 
 Output Format:
@@ -276,7 +283,7 @@ name: CodeWiki Comparison
 description: Compares multiple open-source repositories side-by-side
 model: GPT-5 Mini (copilot)
 user-invocable: false
-tools: [all 5 codewiki-mcp/* tools]
+tools: [read, all 5 codewiki-mcp/* tools]
 ---
 
 Output Format: Structured comparison table
@@ -288,6 +295,47 @@ Output Format: Structured comparison table
 Handles NOT_INDEXED gracefully — continues with available repos,
 notes which comparisons are incomplete.</code></pre>
     </div>
+
+    <!-- Skills -->
+    <h2 id="skills">Skills</h2>
+    <p>Skills are <code>SKILL.md</code> files that provide <strong>domain-specific knowledge</strong> to agents. They are loaded on-demand via the <code>read</code> tool, so agents only consume tokens when they actually need the knowledge.</p>
+
+    <h3>Folder Structure</h3>
+    <pre><code>.github/
+  skills/
+    codewiki-usage/
+      SKILL.md          ← domain knowledge for CodeWiki MCP usage</code></pre>
+
+    <h3>Skill File Format</h3>
+    <p>A <code>SKILL.md</code> file uses YAML frontmatter with <code>name</code> and <code>description</code> fields, followed by the skill content in Markdown:</p>
+    <div class="tool-card">
+      <pre><code>---
+name: codewiki-usage
+description: Best practices for using Google CodeWiki MCP tools
+  to explore open-source repositories. Covers tool selection
+  strategy, token efficiency, pagination, error handling, and
+  multi-repo workflows.
+---
+
+# CodeWiki MCP — Usage Best Practices
+
+## Tool Selection Strategy (ordered by cost)
+...
+
+## Recommended Workflow
+...
+
+## Anti-Patterns to Avoid
+...</code></pre>
+    </div>
+
+    <h3>How Skills Work</h3>
+    <ul>
+      <li><strong>On-demand loading:</strong> Agents use the <code>read</code> tool to load the skill file only when they need domain knowledge. This avoids bloating every prompt with instructions.</li>
+      <li><strong>Requires <code>read</code> tool:</strong> Every agent that uses skills must have <code>'read'</code> in its tools list. This is why all subagents now include <code>read</code> as their first tool entry.</li>
+      <li><strong>Workspace-wide:</strong> Skills are separate from agent definitions and available to all agents in the workspace.</li>
+      <li><strong>VS Code setting:</strong> Enable skill loading with <code>"chat.useAgentSkills": true</code> in your VS Code settings. When enabled, the editor exposes skill metadata to agents so they know which skills are available.</li>
+    </ul>
 
     <!-- Lessons Learned -->
     <h2 id="lessons-learned">Lessons Learned</h2>
@@ -316,14 +364,14 @@ tools:
       <p>If the master orchestrator has access to <code>codewiki_read_contents</code> or <code>codewiki_search_wiki</code>, it will try to answer questions directly instead of delegating. Restrict the master to:</p>
       <ul>
         <li><code>agent</code> — for spawning subagents</li>
-        <li><code>codewiki_list_topics</code> — for availability checks + pre-fetching</li>
+        <li><code>codewiki_list_topics</code> — for NOT_INDEXED detection only</li>
         <li><code>codewiki_request_indexing</code> — for handling NOT_INDEXED directly</li>
       </ul>
     </div>
 
-    <h3>3. Pre-Fetch Context to Avoid Round-Trips</h3>
+    <h3>3. Subagents Are Stateless — Don't Pre-Fetch for Them</h3>
     <div class="tool-card">
-      <p>Without pre-fetching, the flow is: Master delegates → Subagent calls <code>codewiki_list_topics</code> → Subagent does real work. With pre-fetching, the master calls <code>codewiki_list_topics</code> once and passes the result in the delegation prompt, saving a tool call round-trip inside the subagent.</p>
+      <p>The master does <strong>not</strong> need to pre-fetch topics and pass them to subagents. Each subagent is stateless and has its own tools — it will call <code>codewiki_read_structure</code>, <code>codewiki_list_topics</code>, etc. independently. The master only calls <code>codewiki_list_topics</code> to detect NOT_INDEXED errors before delegating.</p>
     </div>
 
     <h3>4. <code>user-invokable: false</code> Prevents Bypass</h3>
@@ -354,7 +402,10 @@ agents:
 tools:
   - 'agent/runSubagent'</code></pre>
     </div>
-
+    <h3>7. Skills Provide Reusable Domain Knowledge</h3>
+    <div class="tool-card">
+      <p>Skills (<code>SKILL.md</code> files) are separate from agents and loaded on-demand via the <code>read</code> tool. They provide domain-specific best practices (tool selection strategy, anti-patterns, workflows) without bloating agent prompts. Since skills are workspace-wide, all agents — including future ones — can access them automatically.</p>
+    </div>
     <!-- ─── Generic Agent Integration ─── -->
     <h2 id="generic-integration">Generic Agent Integration</h2>
     <p>If you're building agents outside VS Code (Claude Desktop, custom Python, LangChain, etc.), use these system prompts and configurations.</p>
