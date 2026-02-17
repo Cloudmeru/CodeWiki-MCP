@@ -27,7 +27,7 @@
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6c63ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8M8 11h6"/></svg>
       CodeWiki MCP
     </div>
-    <span class="version">v1.1.0</span>
+    <span class="version">v1.3.0</span>
   </div>
   <nav>
     <div class="nav-section">Overview</div>
@@ -94,6 +94,71 @@
 
   <div class="content">
     <h2>Latest Releases</h2>
+
+    <section class="release">
+      <h3>v1.3.0 — 2025-07-25</h3>
+      <ul>
+        <li><strong>GitHub API fallback for typos &amp; misspellings:</strong></li>
+        <ul>
+          <li>When CodeWiki search returns zero results, the resolver now queries <code>api.github.com/search/repositories</code> as a fallback — catches typos like "fecbook/react" → "facebook/react".</li>
+          <li>Fully async with <code>httpx</code>; no API token required for public repos.</li>
+        </ul>
+        <li><strong>Indexing confirmation via MCP Elicitation:</strong></li>
+        <ul>
+          <li><code>codewiki_request_indexing</code> now asks the user to confirm before submitting a repository for indexing, using the MCP Elicitation protocol.</li>
+          <li>Users can accept, decline, or cancel — decline and cancel skip the submission gracefully.</li>
+        </ul>
+        <li><strong>Defensive hardening:</strong></li>
+        <ul>
+          <li>Narrowed all broad <code>except Exception</code> handlers across every module to catch only specific exception types (<code>TimeoutError</code>, <code>PlaywrightError</code>, <code>httpx.HTTPError</code>, etc.).</li>
+          <li>Eliminated bare <code>raise</code> from except-all blocks; replaced with targeted re-raises.</li>
+        </ul>
+        <li><strong>Code quality:</strong></li>
+        <ul>
+          <li>Full Ruff &amp; Pylint cleanup — zero warnings across the entire codebase.</li>
+          <li>Fixed session pool test infinite loop and <code>gc.collect</code> RuntimeWarnings.</li>
+        </ul>
+        <li><strong>Testing:</strong></li>
+        <ul>
+          <li>53 new tests covering keyword resolution, helpers, request-indexing elicitation, tool-level keyword integration, SHA-256 hashing, and bare keyword input validation.</li>
+          <li>New test files: <code>test_helpers.py</code> (27 tests), <code>test_request_indexing.py</code> (14 tests), <code>test_keyword_integration.py</code> (7 tests), plus additions to <code>test_types.py</code> (5 tests).</li>
+          <li>Total: <strong>246 tests passing</strong>, 0 warnings.</li>
+        </ul>
+      </ul>
+    </section>
+
+    <section class="release">
+      <h3>v1.2.0 — 2025-07-20</h3>
+      <ul>
+        <li><strong>Bare keyword resolution — <code>resolver.py</code>:</strong></li>
+        <ul>
+          <li>All tools now accept <strong>bare keywords</strong> (e.g. <code>"vue"</code>, <code>"react"</code>) in addition to full URLs and <code>owner/repo</code> shorthand.</li>
+          <li>Resolution pipeline: CodeWiki search scraping → GitHub API fallback → MCP Elicitation for disambiguation → heuristic top-pick.</li>
+          <li>New module <code>codewiki_mcp/resolver.py</code> encapsulates the entire resolution flow.</li>
+        </ul>
+        <li><strong>MCP Elicitation protocol:</strong></li>
+        <ul>
+          <li>When multiple repositories match a keyword, the server uses the <a href="https://modelcontextprotocol.io/specification/2025-06-18/server/elicitation">MCP Elicitation</a> protocol to interactively ask the user to pick the right one.</li>
+          <li>Requires an MCP client that supports elicitation (e.g. Claude Desktop, VS Code Copilot with MCP support).</li>
+        </ul>
+        <li><strong>Resolution notes in responses:</strong></li>
+        <ul>
+          <li>When a bare keyword is resolved, every response is prefixed with a note like: <code>&gt; <strong>Resolved:</strong> keyword "vue" → <strong>vuejs/vue</strong> (209.9k★)</code></li>
+        </ul>
+        <li><strong><code>ctx</code> parameter on all tools:</strong></li>
+        <ul>
+          <li>All 5 tools now accept an optional <code>ctx: Context</code> parameter for MCP Elicitation support. Backward-compatible — omitting <code>ctx</code> disables elicitation and uses heuristic resolution.</li>
+        </ul>
+        <li><strong>SHA-256 content hash:</strong></li>
+        <ul>
+          <li>Content hash algorithm upgraded from MD5 to SHA-256 (16-char hex prefix) for stronger deduplication fingerprints.</li>
+        </ul>
+        <li><strong>Testing:</strong></li>
+        <ul>
+          <li>New <code>test_resolver.py</code> with full coverage of the resolution pipeline. Total: 193 tests passing.</li>
+        </ul>
+      </ul>
+    </section>
 
     <section class="release">
       <h3>v1.1.0 — 2026-02-16</h3>

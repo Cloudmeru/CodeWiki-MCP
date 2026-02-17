@@ -22,7 +22,7 @@
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6c63ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8M8 11h6"/></svg>
       CodeWiki MCP
     </div>
-    <span class="version">v1.1.0</span>
+    <span class="version">v1.3.0</span>
   </div>
   <nav>
     <div class="nav-section">Overview</div>
@@ -90,6 +90,8 @@
       <div class="mermaid">
         graph LR
           A[Editor Client] -->|requests| B[Tools Layer]
+          B -->|bare keyword?| R[Keyword Resolver]
+          R -->|owner/repo| B
           B -->|rate limit + dedup| H[Safety Layer]
           H -->|renders via| C[Browser Singleton]
           C --> D[Playwright Chromium]
@@ -176,8 +178,18 @@
     <ul>
       <li><strong>In-flight deduplication</strong> (<code>dedup.py</code>) — concurrent identical tool calls are collapsed into a single execution</li>
       <li><strong>Rate limiting</strong> (<code>rate_limit.py</code>) — sliding-window limiter (default: 10 calls per 60 s per repo) returns a clear <code>RATE_LIMITED</code> error</li>
-      <li><strong>Content hash + idempotency key</strong> — every response carries a <code>content_hash</code> and <code>idempotency_key</code> so agents can detect duplicate results</li>
+      <li><strong>Content hash + idempotency key</strong> — every response carries a SHA-256 <code>content_hash</code> and <code>idempotency_key</code> so agents can detect duplicate results</li>
     </ul>
+
+    <h2>Keyword Resolver <small>(v1.2.0+)</small></h2>
+    <p><code>resolver.py</code> enables <strong>bare keyword input</strong> — users can type just <code>"react"</code> instead of <code>facebook/react</code>. The resolution pipeline:</p>
+    <ol>
+      <li><strong>CodeWiki search scraping</strong> — headless Playwright fetches search results from <code>codewiki.google</code></li>
+      <li><strong>GitHub API fallback</strong> <small>(v1.3.0)</small> — when CodeWiki returns zero hits, queries <code>api.github.com/search/repositories</code> to handle typos and lesser-known repos</li>
+      <li><strong>MCP Elicitation</strong> — if multiple repos match and a <code>ctx: Context</code> parameter is present, the server uses the <a href="https://modelcontextprotocol.io/specification/2025-06-18/server/elicitation">MCP Elicitation</a> protocol to ask the user to pick</li>
+      <li><strong>Heuristic top-pick</strong> — when elicitation is unavailable, the highest-starred result is selected automatically</li>
+    </ol>
+    <p>Resolution results are cached and a resolution note is prepended to every tool response.</p>
 
     <h2>Key Components</h2>
     <table>
@@ -190,7 +202,8 @@
         <tr><td><strong>Rate limiter + dedup</strong></td><td>Per-repo sliding window &amp; in-flight call deduplication</td></tr>
         <tr><td><strong>BeautifulSoup + lxml</strong></td><td>Fast HTML parsing with section extraction, TOC, and diagram detection</td></tr>
         <tr><td><strong>Pydantic schemas</strong></td><td>Validate all inputs before processing</td></tr>
-        <tr><td><strong>Structured responses</strong></td><td>JSON envelope with metadata, content hash, idempotency key</td></tr>
+        <tr><td><strong>Keyword resolver</strong></td><td>Bare keyword → owner/repo via CodeWiki search, GitHub API fallback, MCP Elicitation</td></tr>
+        <tr><td><strong>Structured responses</strong></td><td>JSON envelope with metadata, SHA-256 content hash, idempotency key</td></tr>
         <tr><td><strong>Modular tools</strong></td><td>Each tool in its own module, registered via <code>register_all_tools()</code></td></tr>
         <tr><td><strong>Signal handlers</strong></td><td>SIGINT/SIGTERM for clean shutdown with browser cleanup</td></tr>
       </tbody>
@@ -206,6 +219,7 @@
 ├── dedup.py           # In-flight call deduplication
 ├── parser.py          # Playwright renderer + BeautifulSoup section parser
 ├── rate_limit.py      # Per-repo sliding-window rate limiter
+├── resolver.py        # Bare keyword → owner/repo resolution (CodeWiki + GitHub API + Elicitation)
 ├── server.py          # MCP server setup + CLI
 ├── session_pool.py    # LRU pool of warm browser contexts for search
 ├── stealth.py         # Anti-bot-detection JS patches + human-like input helpers
@@ -219,20 +233,25 @@
     ├── structure.py   # codewiki_read_structure
     └── topics.py      # codewiki_list_topics (with previews)
 tests/
-├── conftest.py        # Shared fixtures + sample data
-├── test_cache.py      # Cache layer tests
-├── test_config.py     # Configuration tests
-├── test_parser.py     # Parser + HTML extraction tests
-├── test_stealth.py    # Stealth layer tests
-├── test_tools.py      # Server, tools &amp; integration tests
-├── test_types.py      # Schema, response, dedup, rate-limit &amp; idempotency tests
-└── diagnose_search.py # Standalone headless chat diagnostic script
+├── conftest.py            # Shared fixtures + sample data
+├── test_cache.py          # Cache layer tests
+├── test_config.py         # Configuration tests
+├── test_helpers.py        # Helper functions (URL building, truncation, pre-resolve)
+├── test_keyword_integration.py  # Tool-level keyword resolution integration
+├── test_parser.py         # Parser + HTML extraction tests
+├── test_request_indexing.py # Indexing tool elicitation + confirmation flow
+├── test_resolver.py       # Keyword resolver pipeline tests
+├── test_session_pool.py   # Session pool lifecycle + eviction tests
+├── test_stealth.py        # Stealth layer tests
+├── test_tools.py          # Server, tools &amp; integration tests
+├── test_types.py          # Schema, response, dedup, rate-limit, bare keyword &amp; SHA-256 tests
+└── diagnose_search.py     # Standalone headless chat diagnostic script
 Dockerfile             # Docker deployment</code></pre>
 
     <h2>Running Tests</h2>
     <pre><code>pip install -e ".[test]"
 pytest tests/ -v</code></pre>
-    <p>161 tests covering cache, config, parser, stealth, tools, types, dedup, rate limiting, and idempotency.</p>
+    <p>246 tests covering cache, config, parser, stealth, tools, types, dedup, rate limiting, idempotency, keyword resolution, helpers, request-indexing elicitation, and keyword integration.</p>
   </div>
 </main>
 

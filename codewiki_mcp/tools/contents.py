@@ -29,6 +29,48 @@ from ._helpers import (
 logger = logging.getLogger("CodeWiki")
 
 
+def _build_section_content(
+    page, section_title: str, repo_url: str
+) -> str | ToolResponse:
+    """Render one section or return a NO_CONTENT error response."""
+    section = get_section_by_title(page, section_title)
+    if section is None:
+        available = [item.title for item in page.sections[:20]]
+        return ToolResponse.error(
+            ErrorCode.NO_CONTENT,
+            f"Section '{section_title}' not found. "
+            f"Available sections: {', '.join(available)}",
+            repo_url=repo_url,
+        )
+
+    prefix = "#" * min(section.level + 1, 6)
+    return f"{prefix} {section.title}\n\n{section.content}"
+
+
+def _build_paginated_content(page, offset: int, limit: int) -> str:
+    """Render paginated full-page content."""
+    total = len(page.sections)
+    sliced = page.sections[offset : offset + limit]
+    has_more = (offset + limit) < total
+
+    parts = [f"# {page.title}\n"]
+    for section in sliced:
+        prefix = "#" * min(section.level + 1, 6)
+        parts.append(f"\n{prefix} {section.title}\n")
+        if section.content:
+            parts.append(section.content)
+
+    if has_more:
+        next_off = offset + limit
+        parts.append(
+            f"\n\n---\n*Showing sections {offset + 1}–"
+            f"{offset + len(sliced)} of {total}. "
+            f"Call again with `offset={next_off}` to continue.*"
+        )
+
+    return "\n".join(parts).strip()
+
+
 def register(mcp: FastMCP) -> None:
     """Register the codewiki_read_contents tool on the MCP server."""
 
@@ -90,56 +132,26 @@ def register(mcp: FastMCP) -> None:
         if isinstance(result, ToolResponse):
             return result.to_text()
 
-        page = result
-
-        # ----- Section-specific path -----
         if validated.section_title.strip():
-            section = get_section_by_title(page, validated.section_title)
-            if section is None:
-                available = [s.title for s in page.sections[:20]]
-                return ToolResponse.error(
-                    ErrorCode.NO_CONTENT,
-                    f"Section '{section_title}' not found. "
-                    f"Available sections: {', '.join(available)}",
-                    repo_url=validated.repo_url,
-                ).to_text()
-
-            prefix = "#" * min(section.level + 1, 6)
-            data = f"{prefix} {section.title}\n\n{section.content}"
+            content_or_error = _build_section_content(
+                result,
+                validated.section_title.strip(),
+                validated.repo_url,
+            )
+            if isinstance(content_or_error, ToolResponse):
+                return content_or_error.to_text()
+            data = content_or_error
         else:
-            # ----- Paginated full-page path -----
-            total = len(page.sections)
-            sliced = page.sections[
-                validated.offset : validated.offset + validated.limit
-            ]
-            has_more = (validated.offset + validated.limit) < total
-
-            parts = [f"# {page.title}\n"]
-            for section in sliced:
-                pfx = "#" * min(section.level + 1, 6)
-                parts.append(f"\n{pfx} {section.title}\n")
-                if section.content:
-                    parts.append(section.content)
-
-            if has_more:
-                next_off = validated.offset + validated.limit
-                parts.append(
-                    f"\n\n---\n*Showing sections {validated.offset + 1}–"
-                    f"{validated.offset + len(sliced)} of {total}. "
-                    f"Call again with `offset={next_off}` to continue.*"
-                )
-
-            data = "\n".join(parts).strip()
+            data = _build_paginated_content(result, validated.offset, validated.limit)
 
         note = build_resolution_note(original_input, validated.repo_url)
         data, truncated = truncate_response(data, config.RESPONSE_MAX_CHARS)
-        elapsed = int((time.monotonic() - start) * 1000)
 
         return ToolResponse.success(
             note + data,
             repo_url=validated.repo_url,
             meta=ResponseMeta(
-                elapsed_ms=elapsed,
+                elapsed_ms=int((time.monotonic() - start) * 1000),
                 char_count=len(data),
                 truncated=truncated,
             ),

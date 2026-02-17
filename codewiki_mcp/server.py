@@ -6,6 +6,7 @@ Inspired by DeepWiki MCP's multi-transport and CLI-argument patterns.
 from __future__ import annotations
 
 import argparse
+import asyncio
 import logging
 import signal
 import sys
@@ -40,7 +41,7 @@ def _shutdown(signum: int, _frame) -> None:
         )  # pylint: disable=import-outside-toplevel
 
         cleanup_pool()
-    except Exception:
+    except (RuntimeError, OSError, asyncio.TimeoutError, ValueError):
         logger.debug("Suppressed exception during cleanup", exc_info=True)
 
     # Clean up the shared Playwright browser (best-effort)
@@ -51,7 +52,7 @@ def _shutdown(signum: int, _frame) -> None:
         )
 
         run_in_browser_loop(cleanup_browser())
-    except Exception:
+    except (RuntimeError, OSError, asyncio.TimeoutError, ValueError):
         logger.debug("Suppressed exception during cleanup", exc_info=True)
 
     logger.info("CodeWiki MCP server stopped.")
@@ -157,7 +158,7 @@ def main(argv: list[str] | None = None) -> None:
             )  # pylint: disable=import-outside-toplevel
 
             cleanup_pool()
-        except Exception:
+        except (RuntimeError, OSError, asyncio.TimeoutError, ValueError):
             logger.debug("Suppressed exception during cleanup", exc_info=True)
         try:
             from .browser import (  # pylint: disable=import-outside-toplevel
@@ -166,7 +167,7 @@ def main(argv: list[str] | None = None) -> None:
             )
 
             run_in_browser_loop(cleanup_browser())
-        except Exception:
+        except (RuntimeError, OSError, asyncio.TimeoutError, ValueError):
             logger.debug("Suppressed exception during cleanup", exc_info=True)
         logger.info("CodeWiki MCP server stopped.")
 

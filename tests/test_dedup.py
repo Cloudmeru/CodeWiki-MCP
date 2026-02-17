@@ -39,7 +39,7 @@ class TestDedupFetch:
             return "shared-result"
 
         results = [None, None, None]
-        errors = [None, None, None]
+        errors: list[Exception | None] = [None, None, None]
 
         def worker(idx):
             barrier.wait()  # synchronise start
@@ -66,7 +66,7 @@ class TestDedupFetch:
             time.sleep(0.2)
             raise RuntimeError("shared failure")
 
-        errors = [None, None, None]
+        errors: list[RuntimeError | None] = [None, None, None]
 
         def worker(idx):
             barrier.wait()
@@ -107,9 +107,9 @@ class TestDedupFetch:
 
     def test_inflight_count_zero_when_idle(self):
         """No in-flight fetches when nothing is running."""
-        assert inflight_count() == 0
+        assert not inflight_count()
 
     def test_key_freed_after_completion(self):
         """After fetch completes, the key is removed from the registry."""
         dedup_fetch("clean-key", lambda: 42)
-        assert inflight_count() == 0
+        assert not inflight_count()

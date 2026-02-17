@@ -21,6 +21,8 @@ import logging
 from collections import OrderedDict
 from dataclasses import dataclass
 
+from playwright.async_api import TimeoutError as PlaywrightTimeoutError
+
 from . import config
 from .browser import _get_browser, run_in_browser_loop
 from .stealth import apply_stealth_scripts, stealth_context_options
@@ -87,7 +89,7 @@ async def _create_entry(url: str) -> _PoolEntry:
             "body-content-section, documentation-markdown, h1",
             timeout=config.ELEMENT_WAIT_TIMEOUT_SECONDS * 1000,
         )
-    except Exception:
+    except PlaywrightTimeoutError:
         logger.debug("Suppressed exception during cleanup", exc_info=True)
     await asyncio.sleep(config.JS_LOAD_DELAY_SECONDS)
 

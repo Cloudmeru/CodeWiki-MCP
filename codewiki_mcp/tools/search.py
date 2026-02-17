@@ -12,6 +12,7 @@ import logging
 import time
 
 from mcp.server.fastmcp import Context, FastMCP
+from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
 from .. import config
 from ..browser import _get_browser, run_in_browser_loop
@@ -51,7 +52,12 @@ async def _ensure_chat_open(page) -> bool:
         if await chat.is_visible(timeout=2000):
             logger.debug("Chat panel already open")
             return True
-    except Exception:
+    except (
+        PlaywrightTimeoutError,
+        RuntimeError,
+        ValueError,
+        TypeError,
+    ):
         logger.debug("Suppressed exception during cleanup", exc_info=True)
 
     # Try clicking the toggle button
@@ -64,7 +70,12 @@ async def _ensure_chat_open(page) -> bool:
             chat = page.locator(config.CHAT_OPEN_SELECTOR)
             if await chat.is_visible(timeout=3000):
                 return True
-    except Exception:
+    except (
+        PlaywrightTimeoutError,
+        RuntimeError,
+        ValueError,
+        TypeError,
+    ):
         logger.debug("Suppressed exception during cleanup", exc_info=True)
 
     return False
@@ -78,7 +89,13 @@ async def _find_chat_input(page):
             if await elem.is_visible(timeout=2000):
                 logger.debug("Found chat input: %s", selector)
                 return elem
-        except Exception:  # pylint: disable=broad-except
+        except (
+            PlaywrightTimeoutError,
+            RuntimeError,
+            ValueError,
+            TypeError,
+            AttributeError,
+        ):
             continue
     return None
 
@@ -97,7 +114,13 @@ async def _wait_for_submit_enabled(page, timeout_ms: int = 5000) -> None:
                     if not disabled:
                         return
                     await asyncio.sleep(0.2)
-        except Exception:  # pylint: disable=broad-except
+        except (
+            PlaywrightTimeoutError,
+            RuntimeError,
+            ValueError,
+            TypeError,
+            AttributeError,
+        ):
             continue
 
 
@@ -122,7 +145,13 @@ async def _submit_query(page, chat_input) -> None:
                 await btn.click()
                 logger.debug("Clicked submit as fallback: %s", selector)
                 return
-        except Exception:  # pylint: disable=broad-except
+        except (
+            PlaywrightTimeoutError,
+            RuntimeError,
+            ValueError,
+            TypeError,
+            AttributeError,
+        ):
             continue
     logger.debug("No submit button found after Enter")
 
@@ -144,7 +173,13 @@ async def _wait_for_response(page) -> str:  # pylint: disable=too-many-branches
             empty = page.locator(config.CHAT_EMPTY_STATE_SELECTOR)
             if not await empty.is_visible(timeout=500):
                 break
-        except Exception:  # pylint: disable=broad-except
+        except (
+            PlaywrightTimeoutError,
+            RuntimeError,
+            ValueError,
+            TypeError,
+            AttributeError,
+        ):
             break
         await asyncio.sleep(1)
 
@@ -161,7 +196,13 @@ async def _wait_for_response(page) -> str:  # pylint: disable=too-many-branches
                     if len(text) > config.NEW_CONTENT_THRESHOLD_CHARS:
                         content = text
                         break
-            except Exception:  # pylint: disable=broad-except
+            except (
+                PlaywrightTimeoutError,
+                RuntimeError,
+                ValueError,
+                TypeError,
+                AttributeError,
+            ):
                 continue
         if content:
             break
@@ -179,7 +220,13 @@ async def _wait_for_response(page) -> str:  # pylint: disable=too-many-branches
                 if await elem.is_visible(timeout=500):
                     content = await elem.inner_text()
                     break
-            except Exception:  # pylint: disable=broad-except
+            except (
+                PlaywrightTimeoutError,
+                RuntimeError,
+                ValueError,
+                TypeError,
+                AttributeError,
+            ):
                 continue
         if len(content) == last_len:
             logger.debug("Response stabilized at %d chars", last_len)
@@ -219,7 +266,12 @@ async def _search_impl(inp: SearchInput) -> ToolResponse:
     try:
         entry = await _get_or_create(target_url)
         page = entry.page
-    except Exception as exc:  # pylint: disable=broad-except
+    except (
+        PlaywrightTimeoutError,
+        RuntimeError,
+        ValueError,
+        TypeError,
+    ) as exc:
         logger.warning("Session pool failed, falling back to fresh context: %s", exc)
         return await _search_fresh_context(inp, target_url)
 
@@ -289,7 +341,12 @@ async def _search_impl(inp: SearchInput) -> ToolResponse:
             meta=ResponseMeta(char_count=len(cleaned), truncated=truncated),
         )
 
-    except Exception as exc:  # pylint: disable=broad-except
+    except (
+        PlaywrightTimeoutError,
+        RuntimeError,
+        ValueError,
+        TypeError,
+    ) as exc:
         broken = True
         return ToolResponse.error(
             ErrorCode.DRIVER_ERROR,
@@ -326,7 +383,7 @@ async def _search_fresh_context(inp: SearchInput, target_url: str) -> ToolRespon
                 "body-content-section, documentation-markdown, h1",
                 timeout=config.ELEMENT_WAIT_TIMEOUT_SECONDS * 1000,
             )
-        except Exception:
+        except PlaywrightTimeoutError:
             logger.debug("Suppressed exception during cleanup", exc_info=True)
         await asyncio.sleep(config.JS_LOAD_DELAY_SECONDS)
 
@@ -381,7 +438,12 @@ async def _search_fresh_context(inp: SearchInput, target_url: str) -> ToolRespon
             meta=ResponseMeta(char_count=len(cleaned), truncated=truncated),
         )
 
-    except Exception as exc:  # pylint: disable=broad-except
+    except (
+        PlaywrightTimeoutError,
+        RuntimeError,
+        ValueError,
+        TypeError,
+    ) as exc:
         return ToolResponse.error(
             ErrorCode.DRIVER_ERROR,
             f"Playwright error: {exc}",
@@ -407,7 +469,12 @@ def _run_search(inp: SearchInput) -> ToolResponse:
             repo_url=inp.repo_url,
             query=inp.query,
         )
-    except Exception as exc:  # pylint: disable=broad-except
+    except (
+        PlaywrightTimeoutError,
+        RuntimeError,
+        ValueError,
+        TypeError,
+    ) as exc:
         return ToolResponse.error(
             ErrorCode.INTERNAL,
             str(exc),
@@ -423,7 +490,9 @@ def register(mcp: FastMCP) -> None:
     """Register the codewiki_search_wiki tool on the MCP server."""
 
     @mcp.tool()
-    def codewiki_search_wiki(repo_url: str, query: str = "", ctx: Context | None = None) -> str:
+    def codewiki_search_wiki(
+        repo_url: str, query: str = "", ctx: Context | None = None
+    ) -> str:
         """
         Ask Google CodeWiki a question about an open-source repository.
 

@@ -22,7 +22,7 @@
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6c63ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8M8 11h6"/></svg>
       CodeWiki MCP
     </div>
-    <span class="version">v1.1.0</span>
+    <span class="version">v1.3.0</span>
   </div>
   <nav>
     <div class="nav-section">Overview</div>
@@ -89,17 +89,30 @@
     <div class="diagram">
       <div class="mermaid">
         graph LR
-          A[codewiki_list_topics] -->|calls| B[Browser Singleton]
-          C[codewiki_read_structure] -->|calls| B
-          D[codewiki_read_contents] -->|calls| B
-          E[codewiki_search_wiki] -->|calls| B
-          F2[codewiki_request_indexing] -->|calls| B
+          A[codewiki_list_topics] -->|repo_url| R[Keyword Resolver]
+          C[codewiki_read_structure] -->|repo_url| R
+          D[codewiki_read_contents] -->|repo_url| R
+          E[codewiki_search_wiki] -->|repo_url| R
+          F2[codewiki_request_indexing] -->|repo_url| R
+          R -->|owner/repo| B[Browser Singleton]
           B --> F[Playwright]
           F --> G[Parser]
           G --> H[JSON Response]
           B --> I[TTL Cache]
       </div>
     </div>
+
+    <!-- Keyword Resolution -->
+    <h2>Keyword Resolution <span class="badge">v1.2.0+</span></h2>
+    <p>All tools accept <strong>bare keywords</strong> (e.g. <code>"vue"</code>, <code>"react"</code>) in the <code>repo_url</code> parameter, in addition to full URLs and <code>owner/repo</code> shorthand. The resolution pipeline:</p>
+    <ol>
+      <li><strong>CodeWiki search scraping</strong> — searches <code>codewiki.google</code> for matching repos.</li>
+      <li><strong>GitHub API fallback</strong> <span class="badge">v1.3.0</span> — if CodeWiki returns zero results, queries <code>api.github.com/search/repositories</code> to catch typos (e.g. "fecbook/react" → "facebook/react").</li>
+      <li><strong>MCP Elicitation</strong> — when multiple repos match, interactively asks the user to pick via the <a href="https://modelcontextprotocol.io/specification/2025-06-18/server/elicitation">MCP Elicitation</a> protocol (requires a supporting client).</li>
+      <li><strong>Heuristic top-pick</strong> — if elicitation is unavailable, selects the top result by star count.</li>
+    </ol>
+    <p>When a keyword is resolved, responses are prefixed with a resolution note:</p>
+    <pre><code>&gt; **Resolved:** keyword "vue" → **vuejs/vue** (209.9k★)</code></pre>
 
     <!-- Tool 1 -->
     <div class="tool-card">
@@ -108,7 +121,7 @@
       <table>
         <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
         <tbody>
-          <tr><td><code>repo_url</code></td><td>string</td><td>Yes</td><td>Full URL or <code>owner/repo</code> shorthand</td></tr>
+          <tr><td><code>repo_url</code></td><td>string</td><td>Yes</td><td>Full URL, <code>owner/repo</code> shorthand, or bare keyword (e.g. <code>"react"</code>)</td></tr>
         </tbody>
       </table>
       <p><em>Returns titles + 200-char previews per section. Renders via Playwright, caches result for 5 minutes.</em></p>
@@ -121,7 +134,7 @@
       <table>
         <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
         <tbody>
-          <tr><td><code>repo_url</code></td><td>string</td><td>Yes</td><td>Full URL or <code>owner/repo</code> shorthand</td></tr>
+          <tr><td><code>repo_url</code></td><td>string</td><td>Yes</td><td>Full URL, <code>owner/repo</code> shorthand, or bare keyword</td></tr>
         </tbody>
       </table>
       <p><em>Renders the page via Playwright, caches result for 5 minutes.</em></p>
@@ -134,7 +147,7 @@
       <table>
         <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
         <tbody>
-          <tr><td><code>repo_url</code></td><td>string</td><td>Yes</td><td>Full URL or <code>owner/repo</code> shorthand</td></tr>
+          <tr><td><code>repo_url</code></td><td>string</td><td>Yes</td><td>Full URL, <code>owner/repo</code> shorthand, or bare keyword</td></tr>
           <tr><td><code>section_title</code></td><td>string</td><td>No</td><td>Title (or partial) of a section to retrieve</td></tr>
           <tr><td><code>offset</code></td><td>int</td><td>No</td><td>Section index to start from (default 0)</td></tr>
           <tr><td><code>limit</code></td><td>int</td><td>No</td><td>Max sections per response (default 5, max 50)</td></tr>
@@ -150,7 +163,7 @@
       <table>
         <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
         <tbody>
-          <tr><td><code>repo_url</code></td><td>string</td><td>Yes</td><td>Full URL or <code>owner/repo</code> shorthand</td></tr>
+          <tr><td><code>repo_url</code></td><td>string</td><td>Yes</td><td>Full URL, <code>owner/repo</code> shorthand, or bare keyword</td></tr>
           <tr><td><code>query</code></td><td>string</td><td>Yes</td><td>The question to ask</td></tr>
         </tbody>
       </table>
@@ -160,7 +173,11 @@
 query: Where are the Allow/Skip buttons implemented?
 
 repo_url: microsoft/vscode
-query: How does the extension activation work?</code></pre>
+query: How does the extension activation work?
+
+# Bare keyword — resolves automatically
+repo_url: react
+query: How does the reconciler work?</code></pre>
     </div>
 
     <!-- Tool 5 -->
@@ -170,7 +187,7 @@ query: How does the extension activation work?</code></pre>
       <table>
         <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
         <tbody>
-          <tr><td><code>repo_url</code></td><td>string</td><td>Yes</td><td>Full URL or <code>owner/repo</code> shorthand</td></tr>
+          <tr><td><code>repo_url</code></td><td>string</td><td>Yes</td><td>Full URL, <code>owner/repo</code> shorthand, or bare keyword</td></tr>
         </tbody>
       </table>
       <p><em>Uses Playwright to navigate CodeWiki's search page, click "Request repository", fill in the GitHub URL, and submit. Returns confirmation when successful.</em></p>
@@ -187,6 +204,8 @@ query: How does the extension activation work?</code></pre>
   "data": "The response content...",
   "repo_url": "https://github.com/owner/repo",
   "query": "How does X work?",
+  "content_hash": "a1b2c3d4e5f67890",
+  "idempotency_key": "owner/repo::a1b2c3d4e5f67890",
   "meta": {
     "elapsed_ms": 450,
     "char_count": 3200,

@@ -24,6 +24,7 @@ from ..types import (
 if TYPE_CHECKING:
     from mcp.server.fastmcp import Context
 
+
 # ---------------------------------------------------------------------------
 # Not-indexed detection
 # ---------------------------------------------------------------------------
@@ -37,6 +38,7 @@ def _is_not_indexed(page: WikiPage) -> bool:
         return False
     text = (page.raw_text or "").lower()
     return any(ind.lower() in text for ind in config.NOT_INDEXED_INDICATORS)
+
 
 logger = logging.getLogger("CodeWiki")
 
@@ -90,7 +92,9 @@ def build_resolution_note(original_input: str, resolved_repo_url: str) -> str:
         return ""
 
     # Find which result was selected
-    clean = resolved_repo_url.replace("https://github.com/", "").replace("http://github.com/", "")
+    clean = resolved_repo_url.replace("https://github.com/", "").replace(
+        "http://github.com/", ""
+    )
 
     selected = None
     others = []
@@ -176,7 +180,6 @@ def fetch_page_or_error(repo_url: str) -> WikiPage | ToolResponse:
     if isinstance(validated, ToolResponse):
         return validated
 
-    # --- Rate limiting ---
     if not check_rate_limit(validated.repo_url):
         return ToolResponse.error(
             ErrorCode.RATE_LIMITED,
@@ -187,7 +190,6 @@ def fetch_page_or_error(repo_url: str) -> WikiPage | ToolResponse:
             repo_url=validated.repo_url,
         )
 
-    # --- Deduplicated fetch ---
     try:
         page = dedup_fetch(
             validated.repo_url,
@@ -199,32 +201,37 @@ def fetch_page_or_error(repo_url: str) -> WikiPage | ToolResponse:
             f"Timed out fetching CodeWiki page for {validated.repo_url}: {exc}",
             repo_url=validated.repo_url,
         )
-    except Exception as exc:  # pylint: disable=broad-except
+    except Exception as exc:
         return ToolResponse.error(
             ErrorCode.INTERNAL,
             f"Failed to fetch CodeWiki page: {exc}",
             repo_url=validated.repo_url,
         )
 
+    return _validate_fetched_page(validated.repo_url, page)
+
+
+def _validate_fetched_page(repo_url: str, page: WikiPage) -> WikiPage | ToolResponse:
+    """Validate fetched page content and convert not-indexed states to errors."""
     if not page.sections and not page.raw_text:
         return ToolResponse.error(
             ErrorCode.NO_CONTENT,
-            f"No content found for {validated.repo_url}. "
+            f"No content found for {repo_url}. "
             "The repository may not be indexed by CodeWiki.",
-            repo_url=validated.repo_url,
+            repo_url=repo_url,
         )
 
     if _is_not_indexed(page):
-        codewiki_url = build_codewiki_url(validated.repo_url)
+        codewiki_url = build_codewiki_url(repo_url)
         return ToolResponse.error(
             ErrorCode.NOT_INDEXED,
-            f"The repository {validated.repo_url} is not yet indexed by "
+            f"The repository {repo_url} is not yet indexed by "
             f"Google CodeWiki. You can request indexing by visiting: "
             f"{config.CODEWIKI_REQUEST_URL} and searching for the "
             f"repository, or navigate directly to {codewiki_url} — "
             f"CodeWiki may begin indexing automatically. "
             f"Please try again later once indexing is complete.",
-            repo_url=validated.repo_url,
+            repo_url=repo_url,
         )
 
     return page

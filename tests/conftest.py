@@ -42,11 +42,11 @@ SAMPLE_HTML = """
 
 def make_wiki_page(**overrides: Any) -> WikiPage:
     """Create a WikiPage with sensible defaults for testing."""
-    defaults = dict(
-        repo_name=SAMPLE_REPO_NAME,
-        url=f"https://codewiki.google/{SAMPLE_REPO_NAME}",
-        title="Microsoft VS Code",
-        sections=[
+    defaults: dict[str, Any] = {
+        "repo_name": SAMPLE_REPO_NAME,
+        "url": f"https://codewiki.google/{SAMPLE_REPO_NAME}",
+        "title": "Microsoft VS Code",
+        "sections": [
             WikiSection(
                 title="Architecture", level=2, content="VS Code is built on Electron."
             ),
@@ -58,14 +58,14 @@ def make_wiki_page(**overrides: Any) -> WikiPage:
             ),
             WikiSection(title="Testing", level=2, content="Tests written in Mocha."),
         ],
-        toc=[
+        "toc": [
             {"title": "Architecture", "href": "#architecture"},
             {"title": "Extensions", "href": "#extensions"},
             {"title": "Testing", "href": "#testing"},
         ],
-        diagrams=[],
-        raw_text="Microsoft VS Code\nArchitecture\nExtensions\nTesting",
-    )
+        "diagrams": [],
+        "raw_text": "Microsoft VS Code\nArchitecture\nExtensions\nTesting",
+    }
     defaults.update(overrides)
     return WikiPage(**defaults)
 

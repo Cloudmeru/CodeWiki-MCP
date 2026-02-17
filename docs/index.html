@@ -27,7 +27,7 @@
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6c63ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8M8 11h6"/></svg>
       CodeWiki MCP
     </div>
-    <span class="version">v1.1.0</span>
+    <span class="version">v1.3.0</span>
   </div>
   <nav>
     <div class="nav-section">Overview</div>
@@ -152,6 +152,13 @@ playwright install chromium</code></pre>
       </div>
       <div class="feature-card">
         <div class="icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </div>
+        <h3>Keyword Resolution</h3>
+        <p>Type just <code>"react"</code> instead of <code>facebook/react</code>. Auto-resolves via CodeWiki search + GitHub API fallback with interactive disambiguation.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
         </div>
         <h3>Multi-Transport</h3>
@@ -167,10 +174,15 @@ playwright install chromium</code></pre>
 
     <!-- Supported repos -->
     <h2>Supported Repositories</h2>
-    <p>Any public repository on <strong>GitHub</strong>, <strong>GitLab</strong>, or <strong>Bitbucket</strong> that Google CodeWiki covers. Use full URLs or <code>owner/repo</code> shorthand:</p>
+    <p>Any public repository on <strong>GitHub</strong>, <strong>GitLab</strong>, or <strong>Bitbucket</strong> that Google CodeWiki covers. Use full URLs, <code>owner/repo</code> shorthand, or <strong>bare keywords</strong>:</p>
     <pre><code>repo_url: microsoft/vscode
 repo_url: https://github.com/facebook/react
-repo_url: golang/go</code></pre>
+repo_url: golang/go
+
+# Bare keywords (v1.2.0+) — auto-resolved
+repo_url: react
+repo_url: vue
+repo_url: fastapi</code></pre>
   </div>
 </main>
 

@@ -99,7 +99,9 @@ class TestSectionInput:
 
     def test_inherits_repo_validation(self):
         with pytest.raises(Exception):
-            SectionInput(repo_url="bad", section_title="Architecture")
+            SectionInput(
+                repo_url="http://example.com/foo/bar", section_title="Architecture"
+            )
 
     def test_shorthand_normalizes(self):
         inp = SectionInput(repo_url="microsoft/vscode", section_title="Ext")
@@ -120,7 +122,7 @@ class TestToolResponse:
         assert resp.code is None
         # content_hash and idempotency_key populated on success
         assert resp.meta.content_hash is not None
-        assert len(resp.meta.content_hash) == 12
+        assert len(resp.meta.content_hash) == 16
         assert resp.idempotency_key is not None
         assert "https://github.com/a/b" in resp.idempotency_key
 
@@ -172,6 +174,7 @@ class TestToolResponse:
     def test_idempotency_key_with_repo(self):
         """Idempotency key includes repo_url and content_hash."""
         r = ToolResponse.success("x", repo_url="https://github.com/a/b")
+        assert r.idempotency_key is not None
         parts = r.idempotency_key.split("::")
         assert len(parts) == 2
         assert parts[0] == "https://github.com/a/b"
@@ -211,7 +214,7 @@ class TestValidationHelpers:
         assert isinstance(result, TopicsInput)
 
     def test_validate_topics_input_bad(self):
-        result = validate_topics_input("bad")
+        result = validate_topics_input("http://example.com/foo/bar")
         assert isinstance(result, ToolResponse)
         assert result.code == ErrorCode.VALIDATION
 
@@ -220,7 +223,7 @@ class TestValidationHelpers:
         assert isinstance(result, SectionInput)
 
     def test_validate_section_input_bad_url(self):
-        result = validate_section_input("bad", "Architecture")
+        result = validate_section_input("http://example.com/foo/bar", "Architecture")
         assert isinstance(result, ToolResponse)
         assert result.code == ErrorCode.VALIDATION
 
@@ -228,3 +231,50 @@ class TestValidationHelpers:
         result = validate_section_input("owner/repo", "")
         assert isinstance(result, ToolResponse)
         assert result.code == ErrorCode.VALIDATION
+
+
+# ---------------------------------------------------------------------------
+# Bare keyword resolution in RepoInput (v1.2.0+)
+# ---------------------------------------------------------------------------
+class TestRepoInputBareKeyword:
+    """Tests for bare keyword → owner/repo resolution inside the validator."""
+
+    def test_resolved_keyword_produces_github_url(self, mocker):
+        mocker.patch(
+            "codewiki_mcp.resolver.resolve_keyword",
+            return_value=("vuejs/vue", []),
+        )
+        mocker.patch("codewiki_mcp.resolver.is_bare_keyword", return_value=True)
+        inp = RepoInput(repo_url="vue")
+        assert inp.repo_url == "https://github.com/vuejs/vue"
+
+    def test_unresolved_keyword_raises_helpful_error(self, mocker):
+        mocker.patch(
+            "codewiki_mcp.resolver.resolve_keyword",
+            return_value=(None, []),
+        )
+        mocker.patch("codewiki_mcp.resolver.is_bare_keyword", return_value=True)
+        with pytest.raises(Exception, match="Could not resolve keyword"):
+            RepoInput(repo_url="xyznonexistent")
+
+    def test_non_keyword_non_url_raises(self):
+        """Gibberish that isn't a keyword, URL, or owner/repo should fail."""
+        with pytest.raises(Exception, match="Invalid repository URL"):
+            RepoInput(repo_url="https://random-site.com/foo/bar")
+
+
+# ---------------------------------------------------------------------------
+# SHA-256 content hash (changed from MD5 in v1.2.0)
+# ---------------------------------------------------------------------------
+class TestSha256ContentHash:
+    def test_hash_is_16_chars(self):
+        resp = ToolResponse.success("test data")
+        assert resp.meta.content_hash is not None
+        assert len(resp.meta.content_hash) == 16
+
+    def test_hash_is_hex(self):
+        import re
+
+        resp = ToolResponse.success("test data")
+        assert re.fullmatch(r"[0-9a-f]{16}", resp.meta.content_hash)
+

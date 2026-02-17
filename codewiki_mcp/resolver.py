@@ -29,12 +29,16 @@ import asyncio
 import json
 import logging
 import re
+import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
+from anyio import from_thread
+from cachetools import TTLCache
 from pydantic import BaseModel, Field
+from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
 from . import config
 from .browser import _get_browser, run_in_browser_loop
@@ -74,13 +78,13 @@ class SearchResult:
 
     @property
     def full_name(self) -> str:
+        """Return owner/repo combined identifier."""
         return f"{self.owner}/{self.repo}"
 
 
 # ---------------------------------------------------------------------------
 # In-memory cache for resolved keywords (TTL managed by cachetools)
 # ---------------------------------------------------------------------------
-from cachetools import TTLCache  # noqa: E402
 
 _resolve_cache: TTLCache[str, list[SearchResult]] = TTLCache(
     maxsize=50,
@@ -99,7 +103,7 @@ def _parse_stars(text: str) -> int:
     try:
         if text.endswith("k"):
             return int(float(text[:-1]) * 1000)
-        elif text.endswith("m"):
+        if text.endswith("m"):
             return int(float(text[:-1]) * 1_000_000)
         return int(float(text))
     except (ValueError, IndexError):
@@ -124,7 +128,9 @@ async def _scrape_search_results(keyword: str) -> list[SearchResult]:
     await apply_stealth_scripts(page)
 
     try:
-        logger.info("resolver: searching CodeWiki for keyword '%s' → %s", keyword, search_url)
+        logger.info(
+            "resolver: searching CodeWiki for keyword '%s' → %s", keyword, search_url
+        )
         await page.goto(
             search_url,
             wait_until="domcontentloaded",
@@ -135,59 +141,43 @@ async def _scrape_search_results(keyword: str) -> list[SearchResult]:
         # Wait for search results to render
         try:
             await page.wait_for_selector("a[href*='/github.com/']", timeout=10_000)
-        except Exception:
+        except PlaywrightTimeoutError:
             logger.warning("resolver: no search results found for '%s'", keyword)
             return []
 
         # Extract all result links that point to CodeWiki repo pages
         # Pattern: <a href="https://codewiki.google/github.com/owner/repo">
         results: list[SearchResult] = []
+        seen_full_names: set[str] = set()
         links = await page.query_selector_all("a[href*='/github.com/']")
 
         for link in links:
             try:
-                href = await link.get_attribute("href") or ""
-                text = (await link.inner_text()).strip()
-
-                # Parse owner/repo from href
-                # href like: https://codewiki.google/github.com/vuejs/vue
-                # or relative: /github.com/vuejs/vue
-                match = re.search(r"github\.com/([\w.\-]+)/([\w.\-]+)", href)
-                if not match:
-                    continue
-
-                owner = match.group(1)
-                repo = match.group(2)
-
-                # Skip duplicates
-                if any(r.owner == owner and r.repo == repo for r in results):
-                    continue
-
-                # Parse star count — usually the last number-like token in text
-                # Text looks like: "vuejs vue vuejs This is the repo for Vue 2... 209.9k"
-                stars = 0
-                star_match = re.search(r"([\d,.]+[kKmM]?)\s*$", text)
-                if star_match:
-                    stars = _parse_stars(star_match.group(1))
-
-                # Description: the middle text between owner/repo names and star count
-                description = text
-
-                results.append(SearchResult(
-                    owner=owner,
-                    repo=repo,
-                    description=description[:200],
-                    stars=stars,
-                    codewiki_url=href if href.startswith("http") else f"{config.CODEWIKI_BASE_URL}{href}",
-                ))
-            except Exception as exc:
+                parsed = await _parse_search_result_link(link)
+            except (
+                TypeError,
+                ValueError,
+                AttributeError,
+                RuntimeError,
+                PlaywrightTimeoutError,
+            ) as exc:
                 logger.debug("resolver: failed to parse a search result link: %s", exc)
                 continue
+            if parsed is None or parsed.full_name in seen_full_names:
+                continue
+            seen_full_names.add(parsed.full_name)
+            results.append(parsed)
 
         logger.info("resolver: found %d results for '%s'", len(results), keyword)
         return results
 
-    except Exception as exc:
+    except (
+        PlaywrightTimeoutError,
+        asyncio.TimeoutError,
+        RuntimeError,
+        ValueError,
+        TypeError,
+    ) as exc:
         logger.error("resolver: search scrape failed for '%s': %s", keyword, exc)
         return []
     finally:
@@ -199,7 +189,9 @@ def _fetch_search_results(keyword: str) -> list[SearchResult]:
     """Synchronous wrapper: scrape CodeWiki search results for *keyword*."""
     cached = _resolve_cache.get(keyword.lower())
     if cached is not None:
-        logger.debug("resolver: cache HIT for keyword '%s' (%d results)", keyword, len(cached))
+        logger.debug(
+            "resolver: cache HIT for keyword '%s' (%d results)", keyword, len(cached)
+        )
         return cached
 
     try:
@@ -207,7 +199,7 @@ def _fetch_search_results(keyword: str) -> list[SearchResult]:
     except asyncio.TimeoutError:
         logger.warning("resolver: timed out searching for '%s'", keyword)
         results = []
-    except Exception as exc:
+    except (RuntimeError, ValueError, TypeError) as exc:
         logger.warning("resolver: error searching for '%s': %s", keyword, exc)
         results = []
 
@@ -238,21 +230,27 @@ def _github_search(keyword: str, max_results: int = 10) -> list[SearchResult]:
     """
     cached = _github_cache.get(keyword.lower())
     if cached is not None:
-        logger.debug("resolver: GitHub cache HIT for '%s' (%d results)", keyword, len(cached))
+        logger.debug(
+            "resolver: GitHub cache HIT for '%s' (%d results)", keyword, len(cached)
+        )
         return cached
 
-    query = urllib.parse.urlencode({
-        "q": keyword,
-        "sort": "stars",
-        "order": "desc",
-        "per_page": str(max_results),
-    })
+    query = urllib.parse.urlencode(
+        {
+            "q": keyword,
+            "sort": "stars",
+            "order": "desc",
+            "per_page": str(max_results),
+        }
+    )
     url = f"{GITHUB_API_SEARCH_URL}?{query}"
 
     # Security: enforce HTTPS + allowed host before outbound request
     parsed = urllib.parse.urlparse(url)
     if parsed.scheme != "https" or parsed.netloc != "api.github.com":
-        logger.warning("resolver: blocked outbound request to %s (not in allowlist)", url)
+        logger.warning(
+            "resolver: blocked outbound request to %s (not in allowlist)", url
+        )
         return []
 
     try:
@@ -273,22 +271,30 @@ def _github_search(keyword: str, max_results: int = 10) -> list[SearchResult]:
             if "/" not in full_name:
                 continue
             owner, repo = full_name.split("/", 1)
-            results.append(SearchResult(
-                owner=owner,
-                repo=repo,
-                description=(item.get("description") or "")[:200],
-                stars=item.get("stargazers_count", 0),
-                codewiki_url=f"{config.CODEWIKI_BASE_URL}/github.com/{full_name}",
-            ))
+            results.append(
+                SearchResult(
+                    owner=owner,
+                    repo=repo,
+                    description=(item.get("description") or "")[:200],
+                    stars=item.get("stargazers_count", 0),
+                    codewiki_url=f"{config.CODEWIKI_BASE_URL}/github.com/{full_name}",
+                )
+            )
 
         logger.info(
             "resolver: GitHub API found %d results for '%s'",
-            len(results), keyword,
+            len(results),
+            keyword,
         )
         _github_cache[keyword.lower()] = results
         return results
 
-    except Exception as exc:
+    except (
+        urllib.error.URLError,
+        TimeoutError,
+        json.JSONDecodeError,
+        ValueError,
+    ) as exc:
         logger.warning("resolver: GitHub API search failed for '%s': %s", keyword, exc)
         _github_cache[keyword.lower()] = []
         return []
@@ -297,7 +303,9 @@ def _github_search(keyword: str, max_results: int = 10) -> list[SearchResult]:
 # ---------------------------------------------------------------------------
 # Selection heuristics — pick the best repo from search results
 # ---------------------------------------------------------------------------
-def _select_best_match(keyword: str, results: list[SearchResult]) -> SearchResult | None:
+def _select_best_match(
+    keyword: str, results: list[SearchResult]
+) -> SearchResult | None:
     """Pick the most appropriate repo for the given keyword.
 
     Heuristics (in priority order):
@@ -312,37 +320,64 @@ def _select_best_match(keyword: str, results: list[SearchResult]) -> SearchResul
     if not results:
         return None
 
-    # --- Heuristic 1: Canonical repo (owner matches keyword, repo matches keyword) ---
-    # e.g., "openclaw" → openclaw/openclaw
+    best_match: SearchResult | None = None
+
     canonical = [r for r in results if r.owner.lower() == kw and r.repo.lower() == kw]
     if canonical:
-        return max(canonical, key=lambda r: r.stars)
+        best_match = max(canonical, key=lambda r: r.stars)
 
-    # --- Heuristic 2: Repo name exactly matches keyword ---
-    # e.g., "vue" → vuejs/vue (repo name is "vue")
-    exact_repo = [r for r in results if r.repo.lower() == kw]
-    if exact_repo:
-        return max(exact_repo, key=lambda r: r.stars)
+    if best_match is None:
+        exact_repo = [r for r in results if r.repo.lower() == kw]
+        if exact_repo:
+            best_match = max(exact_repo, key=lambda r: r.stars)
 
-    # --- Heuristic 3: Owner contains keyword + repo looks primary ---
-    # e.g., "react" → facebook/react
-    # Look for repos where the owner name contains the keyword
-    owner_match = [r for r in results if kw in r.owner.lower()]
-    if owner_match:
-        # Prefer repo where repo name also matches keyword
-        owner_and_repo = [r for r in owner_match if r.repo.lower() == kw]
-        if owner_and_repo:
-            return max(owner_and_repo, key=lambda r: r.stars)
-        # Otherwise pick the highest-star owner match
-        return max(owner_match, key=lambda r: r.stars)
+    if best_match is None:
+        owner_match = [r for r in results if kw in r.owner.lower()]
+        if owner_match:
+            owner_and_repo = [r for r in owner_match if r.repo.lower() == kw]
+            if owner_and_repo:
+                best_match = max(owner_and_repo, key=lambda r: r.stars)
+            else:
+                best_match = max(owner_match, key=lambda r: r.stars)
 
-    # --- Heuristic 4: Repo name contains keyword ---
-    repo_contains = [r for r in results if kw in r.repo.lower()]
-    if repo_contains:
-        return max(repo_contains, key=lambda r: r.stars)
+    if best_match is None:
+        repo_contains = [r for r in results if kw in r.repo.lower()]
+        if repo_contains:
+            best_match = max(repo_contains, key=lambda r: r.stars)
 
-    # --- Fallback: first result (highest stars by CodeWiki's sort) ---
-    return results[0]
+    return best_match or results[0]
+
+
+async def _parse_search_result_link(link) -> SearchResult | None:
+    """Parse one search-result anchor into ``SearchResult`` or ``None``."""
+    href = await link.get_attribute("href") or ""
+    text = (await link.inner_text()).strip()
+
+    match = re.search(r"github\.com/([\w.\-]+)/([\w.\-]+)", href)
+    if not match:
+        return None
+
+    owner = match.group(1)
+    repo = match.group(2)
+    stars = _extract_trailing_stars(text)
+    codewiki_url = (
+        href if href.startswith("http") else f"{config.CODEWIKI_BASE_URL}{href}"
+    )
+    return SearchResult(
+        owner=owner,
+        repo=repo,
+        description=text[:200],
+        stars=stars,
+        codewiki_url=codewiki_url,
+    )
+
+
+def _extract_trailing_stars(text: str) -> int:
+    """Return trailing star token from a result text, defaulting to 0."""
+    star_match = re.search(r"([\d,.]+[kKmM]?)\s*$", text)
+    if not star_match:
+        return 0
+    return _parse_stars(star_match.group(1))
 
 
 # ---------------------------------------------------------------------------
@@ -366,7 +401,10 @@ def resolve_keyword(keyword: str) -> tuple[str | None, list[SearchResult]]:
 
     logger.info(
         "resolver: keyword '%s' → %s (%d★, %d candidates)",
-        keyword, best.full_name, best.stars, len(results),
+        keyword,
+        best.full_name,
+        best.stars,
+        len(results),
     )
     return best.full_name, results
 
@@ -386,7 +424,9 @@ def _format_stars(stars: int) -> str:
     return str(stars)
 
 
-def _has_canonical_match(keyword: str, results: list[SearchResult]) -> SearchResult | None:
+def _has_canonical_match(
+    keyword: str, results: list[SearchResult]
+) -> SearchResult | None:
     """Return repo where keyword == owner == repo (e.g. 'openclaw' → openclaw/openclaw)."""
     kw = keyword.lower().strip()
     for r in results:
@@ -432,7 +472,7 @@ async def _elicit_repo_choice(
 
     Returns the selected ``owner/repo`` or ``None`` if user declines/cancels.
     """
-    Model = build_repo_choice_model(results)  # noqa: N806
+    model = build_repo_choice_model(results)
 
     # Build a descriptive message for the elicitation prompt
     top = results[:MAX_ELICITATION_CHOICES]
@@ -444,14 +484,16 @@ async def _elicit_repo_choice(
     lines.append("Which repository do you want to explore?")
     message = "\n".join(lines)
 
-    result = await ctx.elicit(message=message, schema=Model)
+    result = await ctx.elicit(message=message, schema=model)
 
     if result.action == "accept" and result.data is not None:
         selected: str = result.data.selected_repo  # type: ignore[attr-defined]
         logger.info("resolver: user selected '%s' for keyword '%s'", selected, keyword)
         return selected
 
-    logger.info("resolver: user %s elicitation for keyword '%s'", result.action, keyword)
+    logger.info(
+        "resolver: user %s elicitation for keyword '%s'", result.action, keyword
+    )
     return None
 
 
@@ -490,7 +532,9 @@ def resolve_keyword_interactive(
     if len(results) == 1:
         logger.info(
             "resolver: single result (%s) for '%s' → %s",
-            source, keyword, results[0].full_name,
+            source,
+            keyword,
+            results[0].full_name,
         )
         return results[0].full_name, results
 
@@ -499,21 +543,24 @@ def resolve_keyword_interactive(
     if canonical:
         logger.info(
             "resolver: canonical match (%s) for '%s' → %s (%d★)",
-            source, keyword, canonical.full_name, canonical.stars,
+            source,
+            keyword,
+            canonical.full_name,
+            canonical.stars,
         )
         return canonical.full_name, results
 
     # --- Multiple ambiguous results → try elicitation ---
     if ctx is not None:
         try:
-            import anyio.from_thread  # noqa: E402
-
-            selected = anyio.from_thread.run(_elicit_repo_choice, keyword, results, ctx)
+            selected = from_thread.run(_elicit_repo_choice, keyword, results, ctx)
             if selected:
                 return selected, results
             # User declined/cancelled → fall through to heuristic
-            logger.info("resolver: elicitation declined for '%s', using heuristic", keyword)
-        except Exception as exc:
+            logger.info(
+                "resolver: elicitation declined for '%s', using heuristic", keyword
+            )
+        except (RuntimeError, ValueError, TypeError) as exc:
             logger.warning(
                 "resolver: elicitation failed for '%s' (client may not support it): %s",
                 keyword,
@@ -528,6 +575,9 @@ def resolve_keyword_interactive(
 
     logger.info(
         "resolver: heuristic fallback '%s' → %s (%d★, %d candidates)",
-        keyword, best.full_name, best.stars, len(results),
+        keyword,
+        best.full_name,
+        best.stars,
+        len(results),
     )
     return best.full_name, results

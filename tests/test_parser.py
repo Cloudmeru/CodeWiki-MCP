@@ -98,7 +98,7 @@ class TestParseSections:
     def test_empty_page(self):
         soup = BeautifulSoup("<html><body></body></html>", "lxml")
         sections = _parse_sections(soup)
-        assert sections == []
+        assert not sections
 
 
 # ---------------------------------------------------------------------------
@@ -230,7 +230,7 @@ class TestExtractDiagrams:
         html = "<html><body><p>No diagrams here</p></body></html>"
         soup = BeautifulSoup(html, "lxml")
         diagrams = _extract_diagrams(soup)
-        assert diagrams == []
+        assert not diagrams
 
 
 # ---------------------------------------------------------------------------

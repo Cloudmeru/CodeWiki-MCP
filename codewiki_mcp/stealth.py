@@ -137,7 +137,9 @@ def stealth_context_options() -> dict:
 # ---------------------------------------------------------------------------
 # 3. Human-like typing
 # ---------------------------------------------------------------------------
-async def human_type(locator, text: str, *, min_delay: int = 35, max_delay: int = 120) -> None:
+async def human_type(
+    locator, text: str, *, min_delay: int = 35, max_delay: int = 120
+) -> None:
     """Type *text* into *locator* character-by-character with random delays.
 
     Real humans type at roughly 40-80 ms/char with occasional pauses.
@@ -152,7 +154,7 @@ async def human_type(locator, text: str, *, min_delay: int = 35, max_delay: int 
     for i, ch in enumerate(text):
         await locator.press(ch if len(ch) == 1 else ch)
         # Occasional "thinking" pause every 5-15 chars
-        if i > 0 and i % random.randint(5, 15) == 0:
+        if i > 0 and not i % random.randint(5, 15):
             await asyncio.sleep(random.uniform(0.15, 0.4))
         else:
             await asyncio.sleep(random.randint(min_delay, max_delay) / 1000)

@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -151,12 +150,16 @@ class TestHumanMoveTo:
 
         locator = AsyncMock()
         locator.bounding_box.return_value = {
-            "x": 100, "y": 200, "width": 50, "height": 30
+            "x": 100,
+            "y": 200,
+            "width": 50,
+            "height": 30,
         }
 
         await human_move_to(page, locator, steps=10)
         page.mouse.move.assert_awaited_once()
         args = page.mouse.move.await_args
+        assert args is not None
         # Target should be within the bounding box
         assert 100 <= args[0][0] <= 150  # x within box
         assert 200 <= args[0][1] <= 230  # y within box
@@ -189,7 +192,10 @@ class TestHumanClick:
 
         locator = AsyncMock()
         locator.bounding_box.return_value = {
-            "x": 10, "y": 20, "width": 100, "height": 40
+            "x": 10,
+            "y": 20,
+            "width": 100,
+            "height": 40,
         }
 
         await human_click(page, locator)

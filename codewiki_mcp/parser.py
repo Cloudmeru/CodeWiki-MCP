@@ -13,7 +13,8 @@ import re
 import warnings
 from dataclasses import dataclass, field
 
-from bs4 import BeautifulSoup, NavigableString, Tag
+from bs4 import BeautifulSoup, Tag
+from bs4.element import NavigableString
 
 from . import config
 from .browser import fetch_rendered_html
@@ -78,6 +79,17 @@ def _fetch_html(url: str) -> str:
 # ---------------------------------------------------------------------------
 # BeautifulSoup helpers
 # ---------------------------------------------------------------------------
+
+
+def _attr_to_text(value: object) -> str:
+    # Normalize BeautifulSoup attribute values to plain string.
+    if value is None:
+        return ""
+    if isinstance(value, list):
+        return " ".join(str(item) for item in value)
+    return str(value)
+
+
 def _extract_text(tag: Tag) -> str:
     """Extract clean text from a BS4 tag, preserving code blocks."""
     parts: list[str] = []
@@ -235,7 +247,7 @@ def _extract_toc(soup: BeautifulSoup) -> list[dict[str, str]]:
         for link in nav.find_all("a"):
             text = link.get_text(strip=True)
             if text and len(text) > 1:
-                toc.append({"title": text, "href": link.get("href", "")})
+                toc.append({"title": text, "href": _attr_to_text(link.get("href"))})
 
     # Strategy 2: Extract from heading tags anywhere in the page
     if not toc:
@@ -281,7 +293,7 @@ def _extract_codewiki_diagrams(
 
         image_el = inline.find("image", class_="image-diagram")
         href = (
-            (image_el.get("href") or image_el.get("xlink:href") or "")
+            _attr_to_text(image_el.get("href") or image_el.get("xlink:href"))
             if image_el
             else ""
         )
@@ -301,8 +313,8 @@ def _extract_mermaid_diagrams(soup: BeautifulSoup, diagrams: list[dict]) -> None
     for pre in soup.find_all("pre"):
         code = pre.find("code")
         if code:
-            classes = code.get("class", [])
-            class_str = " ".join(classes) if isinstance(classes, list) else str(classes)
+            classes = code.get("class")
+            class_str = _attr_to_text(classes)
             if "mermaid" in class_str.lower():
                 diagrams.append(
                     {"type": "mermaid", "content": code.get_text(strip=True)}

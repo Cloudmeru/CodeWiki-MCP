@@ -8,7 +8,6 @@ each step so we can see where the flow breaks.
 """
 
 import asyncio
-import sys
 import time
 
 # ---------------------------------------------------------------------------
@@ -91,9 +90,9 @@ async def main():
     page = await context.new_page()
 
     # Inject stealth JS
-    stealth_js_path = "codewiki_mcp/stealth.py"
     # Import stealth JS inline
     from codewiki_mcp.stealth import STEALTH_JS
+
     await page.add_init_script(STEALTH_JS)
     log("Stealth scripts injected")
 
@@ -269,7 +268,8 @@ async def main():
         log("Screenshot saved to tests/diagnose_timeout.png")
 
         # Dump all selectors state
-        result = await page.evaluate("""() => {
+        result = await page.evaluate(
+            """() => {
             const r = {};
             r['chat.is-open'] = !!document.querySelector('chat.is-open');
             r['empty-house'] = !!document.querySelector('chat .empty-house-container');
@@ -277,7 +277,8 @@ async def main():
             r['doc-markdown'] = !!document.querySelector('chat .cdk-virtual-scroll-content-wrapper documentation-markdown');
             r['scroll-wrapper-text'] = (document.querySelector('chat .cdk-virtual-scroll-content-wrapper') || {}).innerText || '';
             return r;
-        }""")
+        }"""
+        )
         log(f"DOM state at timeout: {result}")
     else:
         log(f"SUCCESS! Response preview: {content[:200]}...")
