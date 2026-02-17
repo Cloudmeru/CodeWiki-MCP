@@ -20,3 +20,7 @@ venv/
 .mypy_cache/
 scripts/
 .github/agents/security.agent.md
+.github/agents/codequality.agent.md
+.github/agents/cq-linter.agent.md
+.github/agents/cq-refactor.agent.md
+.github/agents/cq-testing.agent.md
