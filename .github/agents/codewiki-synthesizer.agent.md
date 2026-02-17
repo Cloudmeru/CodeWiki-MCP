@@ -1,7 +1,7 @@
 ---
 name: CodeWiki Synthesizer
 description: Combines features, patterns, and architectures from multiple repos into a new solution blueprint
-argument-hint: e.g., "Take auth from supabase and events from kafka" or "Combine best parts from repo A and B"
+argument-hint: e.g., "Take auth from supabase and events from kafka" or "Combine best parts from vue and react"
 model: GPT-5.3-Codex
 user-invokable: false
 tools:
@@ -145,4 +145,5 @@ my-project/
 - If a repo lacks documentation for the requested part, say so clearly.
 - Focus on integration design — don't just list features from each repo.
 - The blueprint must be actionable, not theoretical.
-- Use owner/repo shorthand (e.g., "supabase/supabase") for repo_url.
+- Use owner/repo shorthand (e.g., "supabase/supabase") or bare keywords
+  (e.g., "vue", "kafka") for repo_url — keywords are auto-resolved.

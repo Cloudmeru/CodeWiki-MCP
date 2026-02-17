@@ -44,12 +44,31 @@ class RepoInput(BaseModel):
         if OWNER_REPO_PATTERN.match(v):
             return f"https://github.com/{v}"
 
-        if not REPO_URL_PATTERN.match(v):
+        # Full URL — accept as-is
+        if REPO_URL_PATTERN.match(v):
+            return v
+
+        # --- Bare keyword resolution ---
+        # If it's a single word (no slash, no URL scheme), try to resolve
+        # it via CodeWiki's search page (e.g., "vue" → "vuejs/vue")
+        from .resolver import is_bare_keyword, resolve_keyword  # noqa: E402
+
+        if is_bare_keyword(v):
+            resolved, _results = resolve_keyword(v)
+            if resolved:
+                return f"https://github.com/{resolved}"
+            # No results found — give a helpful error
             raise ValueError(
-                f"Invalid repository URL: '{v}'. "
-                "Expected https://github.com/owner/repo or owner/repo shorthand."
+                f"Could not resolve keyword '{v}' to a repository. "
+                "No matching repos found on CodeWiki. "
+                "Try using owner/repo format (e.g., 'vuejs/vue') or a full URL."
             )
-        return v
+
+        raise ValueError(
+            f"Invalid repository URL: '{v}'. "
+            "Expected https://github.com/owner/repo, owner/repo shorthand, "
+            "or a product keyword (e.g., 'vue', 'react', 'fastapi')."
+        )
 
 
 class SearchInput(RepoInput):

@@ -2,7 +2,7 @@
 
 Eliminates boilerplate duplicated across tool modules: input validation,
 page fetching with error handling, response truncation, URL construction,
-in-flight deduplication, and rate limiting.
+in-flight deduplication, rate limiting, and keyword resolution notes.
 """
 
 from __future__ import annotations
@@ -13,6 +13,7 @@ from .. import config
 from ..dedup import dedup_fetch
 from ..parser import WikiPage, fetch_wiki_page
 from ..rate_limit import check_rate_limit
+from ..resolver import is_bare_keyword, resolve_keyword
 from ..types import (
     ErrorCode,
     ToolResponse,
@@ -34,6 +35,57 @@ def _is_not_indexed(page: WikiPage) -> bool:
     return any(ind.lower() in text for ind in config.NOT_INDEXED_INDICATORS)
 
 logger = logging.getLogger("CodeWiki")
+
+
+# ---------------------------------------------------------------------------
+# Keyword resolution note
+# ---------------------------------------------------------------------------
+def build_resolution_note(original_input: str, resolved_repo_url: str) -> str:
+    """Build a note explaining keyword → repo resolution, or empty string.
+
+    Returns a markdown note like:
+        > **Resolved:** keyword "vue" → **vuejs/vue** (209.9k★)
+        > Other candidates: vuejs/core (52.9k★), panjiachen/vue-element-admin (90.3k★)
+
+    Returns empty string if the input was already owner/repo or a full URL.
+    """
+    if not is_bare_keyword(original_input):
+        return ""
+
+    _, results = resolve_keyword(original_input)  # uses cache, no extra call
+    if not results:
+        return ""
+
+    # Find which result was selected
+    clean = resolved_repo_url.replace("https://github.com/", "").replace("http://github.com/", "")
+
+    selected = None
+    others = []
+    for r in results:
+        if r.full_name == clean:
+            selected = r
+        else:
+            others.append(r)
+
+    if selected is None:
+        return ""
+
+    note = f'> **Resolved:** keyword "{original_input}" → **{selected.full_name}**'
+    if selected.stars:
+        note += f" ({selected.stars:,}★)"
+    note += "\n"
+
+    # Show top 3 other candidates
+    top_others = sorted(others, key=lambda r: r.stars, reverse=True)[:3]
+    if top_others:
+        candidates = ", ".join(
+            f"{r.full_name} ({r.stars:,}★)" if r.stars else r.full_name
+            for r in top_others
+        )
+        note += f"> Other candidates: {candidates}\n"
+
+    note += "\n"
+    return note
 
 
 # ---------------------------------------------------------------------------

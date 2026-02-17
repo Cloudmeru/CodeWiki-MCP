@@ -19,7 +19,7 @@ from ..types import (
     ToolResponse,
     validate_contents_input,
 )
-from ._helpers import fetch_page_or_error, truncate_response
+from ._helpers import build_resolution_note, fetch_page_or_error, truncate_response
 
 logger = logging.getLogger("CodeWiki")
 
@@ -71,6 +71,8 @@ def register(mcp: FastMCP) -> None:
             limit,
         )
 
+        original_input = repo_url  # save before validation resolves keywords
+
         validated = validate_contents_input(repo_url, section_title, offset, limit)
         if isinstance(validated, ToolResponse):
             return validated.to_text()
@@ -120,11 +122,12 @@ def register(mcp: FastMCP) -> None:
 
             data = "\n".join(parts).strip()
 
+        note = build_resolution_note(original_input, validated.repo_url)
         data, truncated = truncate_response(data, config.RESPONSE_MAX_CHARS)
         elapsed = int((time.monotonic() - start) * 1000)
 
         return ToolResponse.success(
-            data,
+            note + data,
             repo_url=validated.repo_url,
             meta=ResponseMeta(
                 elapsed_ms=elapsed,

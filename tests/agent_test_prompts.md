@@ -304,6 +304,52 @@ tools:
 
 ---
 
+## 6. Keyword Resolution (Bare Product Names)
+
+**Routing trigger**: Any prompt using a bare keyword instead of owner/repo format.
+
+### Prompts
+
+```
+@codewiki What is vue?
+```
+
+```
+@codewiki Explain the architecture of react
+```
+
+```
+@codewiki Compare vue vs react
+```
+
+```
+@codewiki What topics does openclaw have?
+```
+
+### Expected Behaviour
+
+| Step | What should happen |
+|------|--------------------|
+| 1 | Master delegates to the appropriate subagent (Researcher, Comparison, etc.) |
+| 2 | Subagent calls a CodeWiki tool with the bare keyword (e.g., `repo_url="vue"`) |
+| 3 | Tool validation auto-resolves the keyword via CodeWiki search (e.g., "vue" → `vuejs/vue`) |
+| 4 | Response includes a resolution note: `> **Resolved:** keyword "vue" → **vuejs/vue** (209,900★)` |
+| 5 | Response shows top alternative candidates |
+| 6 | The rest of the response contains normal CodeWiki documentation |
+
+### Validation
+
+- [ ] Bare keyword "vue" resolves to `vuejs/vue` (highest-star exact repo name match)
+- [ ] Bare keyword "openclaw" resolves to `openclaw/openclaw` (canonical owner==repo match)
+- [ ] Bare keyword "react" resolves to `facebook/react`
+- [ ] Resolution note appears at the top of the response with star count
+- [ ] Alternative candidates are listed (e.g., vuejs/core, panjiachen/vue-element-admin)
+- [ ] The tool response contains actual CodeWiki documentation (not just the resolution note)
+- [ ] owner/repo format still works as before (no resolution note)
+- [ ] Full URLs still work as before (no resolution note)
+
+---
+
 ## Quick Reference: Routing Rules
 
 | User intent | Subagent | Key signal words |

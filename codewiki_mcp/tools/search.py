@@ -35,7 +35,7 @@ from ..types import (
     ToolResponse,
     validate_search_input,
 )
-from ._helpers import build_codewiki_url
+from ._helpers import build_codewiki_url, build_resolution_note
 
 logger = logging.getLogger("CodeWiki")
 
@@ -444,6 +444,8 @@ def register(mcp: FastMCP) -> None:
         start = time.monotonic()
         logger.info("codewiki_search_wiki — repo: %s, query: %s", repo_url, query)
 
+        original_input = repo_url  # save before validation resolves keywords
+
         validated = validate_search_input(repo_url, query)
         if isinstance(validated, ToolResponse):
             return validated.to_text()
@@ -460,12 +462,14 @@ def register(mcp: FastMCP) -> None:
                 query=validated.query,
             ).to_text()
 
+        note = build_resolution_note(original_input, validated.repo_url)
+
         # Check search cache first
         cached = get_cached_search(validated.repo_url, validated.query)
         if cached is not None:
             elapsed = int((time.monotonic() - start) * 1000)
             return ToolResponse.success(
-                cached,
+                note + cached,
                 repo_url=validated.repo_url,
                 query=validated.query,
                 meta=ResponseMeta(
@@ -487,6 +491,7 @@ def register(mcp: FastMCP) -> None:
                 # Cache the successful result
                 if result.data:
                     set_cached_search(validated.repo_url, validated.query, result.data)
+                    result.data = note + result.data
                 return result.to_text()
 
             last_error = result

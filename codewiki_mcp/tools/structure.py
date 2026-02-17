@@ -13,7 +13,7 @@ import time
 from mcp.server.fastmcp import FastMCP
 
 from ..types import ResponseMeta, ToolResponse
-from ._helpers import fetch_page_or_error
+from ._helpers import build_resolution_note, fetch_page_or_error
 
 logger = logging.getLogger("CodeWiki")
 
@@ -46,6 +46,8 @@ def register(mcp: FastMCP) -> None:
         start = time.monotonic()
         logger.info("codewiki_read_structure — repo: %s", repo_url)
 
+        original_input = repo_url  # save before validation resolves keywords
+
         result = fetch_page_or_error(repo_url)
         if isinstance(result, ToolResponse):
             return result.to_text()
@@ -61,10 +63,11 @@ def register(mcp: FastMCP) -> None:
         }
 
         data = json.dumps(structure, indent=2)
+        note = build_resolution_note(original_input, page.url)
         elapsed = int((time.monotonic() - start) * 1000)
 
         return ToolResponse.success(
-            data,
+            note + data,
             repo_url=page.url,
             meta=ResponseMeta(
                 elapsed_ms=elapsed,

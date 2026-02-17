@@ -29,7 +29,7 @@ from ..types import (
     ToolResponse,
     validate_topics_input,
 )
-from ._helpers import build_codewiki_url
+from ._helpers import build_codewiki_url, build_resolution_note
 
 logger = logging.getLogger("CodeWiki")
 
@@ -266,10 +266,15 @@ def register(mcp: FastMCP) -> None:
         start = time.monotonic()
         logger.info("codewiki_request_indexing — repo: %s", repo_url)
 
+        original_input = repo_url  # save before validation resolves keywords
+
         validated = validate_topics_input(repo_url)
         if isinstance(validated, ToolResponse):
             return validated.to_text()
 
+        note = build_resolution_note(original_input, validated.repo_url)
         result = _run_request_indexing(validated.repo_url)
         result.meta.elapsed_ms = int((time.monotonic() - start) * 1000)
+        if result.data and note:
+            result.data = note + result.data
         return result.to_text()

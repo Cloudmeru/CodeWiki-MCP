@@ -1,7 +1,7 @@
 ---
 name: CodeWiki
 description: Master agent that routes your request to the right CodeWiki specialist
-argument-hint: Any question about open-source repos, e.g., "Explain React's architecture" or "Compare Express vs Fastify"
+argument-hint: Any question about open-source repos, e.g., "Explain React's architecture", "Compare Express vs Fastify", or just a keyword like "vue"
 model: GPT-5.3-Codex
 tools:
   [read, agent,codewiki-mcp/*]
@@ -51,7 +51,8 @@ Analyze the user's request and delegate to the right subagent:
 
 1. **Classify** the user's intent from their message.
 2. **Delegate** immediately to the chosen subagent with a clear, focused prompt:
-   - The repo URL (owner/repo format)
+   - The repo URL (owner/repo format), or a bare keyword like "vue" — tools
+     automatically resolve keywords to the correct owner/repo via CodeWiki search.
    - The specific question to answer
    - Example: `"Explain what facebook/prophet is and its main features."`
    - Do NOT include pre-fetched data — subagents are stateless and have

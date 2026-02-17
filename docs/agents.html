@@ -210,7 +210,8 @@ agents:
       <h3>Master Workflow</h3>
       <pre><code>1. CLASSIFY the user's intent from their message
 2. DELEGATE immediately to the chosen subagent via the `agent` tool:
-   - Include the repo URL (owner/repo format)
+   - Include the repo URL (owner/repo format) or a bare keyword
+     like "vue" — tools auto-resolve keywords to owner/repo
    - Include the specific question to answer
    - Subagents are stateless and have their own tools — they will
      fetch data and handle errors (including NOT_INDEXED) independently
@@ -528,7 +529,8 @@ technical questions.
 ## Rules
 - Always cite which section your answer is based on
 - If NOT_INDEXED, call codewiki_request_indexing and inform the user
-- Use owner/repo shorthand (e.g., "microsoft/vscode")
+- Use owner/repo shorthand (e.g., "microsoft/vscode") or bare keywords
+  (e.g., "vue", "react") — keywords are auto-resolved via CodeWiki search
 - Never fabricate information — only report what tools return</code></pre>
     </div>
 
@@ -637,8 +639,8 @@ if response["status"] == "error":
           <td>Check <code>status</code> field; repos may not be indexed or responses can time out</td>
         </tr>
         <tr>
-          <td><strong>Use <code>owner/repo</code> shorthand</strong></td>
-          <td>Cleaner and always works; full URLs are also accepted</td>
+          <td><strong>Use <code>owner/repo</code> shorthand or keywords</strong></td>
+          <td>Bare keywords like "vue" auto-resolve to the correct repo; owner/repo and full URLs also work</td>
         </tr>
         <tr>
           <td><strong>Cache-aware timing</strong></td>
@@ -646,6 +648,29 @@ if response["status"] == "error":
         </tr>
       </tbody>
     </table>
+
+    <!-- Keyword Resolution -->
+    <h2>Keyword Resolution</h2>
+    <p>All tools accept bare product keywords (e.g., <code>"vue"</code>, <code>"react"</code>,
+       <code>"openclaw"</code>) in addition to <code>owner/repo</code> shorthand and full URLs.
+       Keywords are automatically resolved to the correct repository via CodeWiki's search page.</p>
+    <h3>How It Works</h3>
+    <ol>
+      <li>Input validation detects bare keywords (single words with no <code>/</code> or URL scheme)</li>
+      <li>CodeWiki's search page is queried with the keyword</li>
+      <li>The best match is selected using star-count heuristics:
+        <ul>
+          <li>Canonical match (owner == repo == keyword) → e.g., "openclaw" → <code>openclaw/openclaw</code></li>
+          <li>Exact repo name match → e.g., "vue" → <code>vuejs/vue</code></li>
+          <li>Owner contains keyword → e.g., "react" → <code>facebook/react</code></li>
+          <li>Fallback to highest-star result</li>
+        </ul>
+      </li>
+      <li>The response includes a resolution note showing what was resolved and top alternatives</li>
+    </ol>
+    <h3>Example Resolution Note</h3>
+    <pre><code>&gt; **Resolved:** keyword "vue" → **vuejs/vue** (209,900★)
+&gt; Other candidates: panjiachen/vue-element-admin (90,300★), vuejs/awesome-vue (73,600★), vuejs/core (52,900★)</code></pre>
 
     <!-- Token Efficiency -->
     <h2>Token Efficiency Guide</h2>

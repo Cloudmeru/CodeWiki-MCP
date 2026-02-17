@@ -16,7 +16,7 @@ from .. import config
 from ..cache import get_cached_topics, set_cached_topics
 from ..parser import page_to_topic_list
 from ..types import ResponseMeta, ToolResponse, validate_topics_input
-from ._helpers import fetch_page_or_error, truncate_response
+from ._helpers import build_resolution_note, fetch_page_or_error, truncate_response
 
 logger = logging.getLogger("CodeWiki")
 
@@ -51,16 +51,20 @@ def register(mcp: FastMCP) -> None:
         start = time.monotonic()
         logger.info("codewiki_list_topics — repo: %s", repo_url)
 
+        original_input = repo_url  # save before validation resolves keywords
+
         # Check topic-specific cache first (30-min TTL)
         validated = validate_topics_input(repo_url)
         if isinstance(validated, ToolResponse):
             return validated.to_text()
 
+        note = build_resolution_note(original_input, validated.repo_url)
+
         cached = get_cached_topics(validated.repo_url)
         if cached is not None:
             elapsed = int((time.monotonic() - start) * 1000)
             return ToolResponse.success(
-                cached,
+                note + cached,
                 repo_url=validated.repo_url,
                 meta=ResponseMeta(
                     elapsed_ms=elapsed,
@@ -85,7 +89,7 @@ def register(mcp: FastMCP) -> None:
         elapsed = int((time.monotonic() - start) * 1000)
 
         return ToolResponse.success(
-            data,
+            note + data,
             repo_url=page.url,
             meta=ResponseMeta(
                 elapsed_ms=elapsed,
