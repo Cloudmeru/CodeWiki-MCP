@@ -10,10 +10,10 @@ import json
 import logging
 import time
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 
 from ..types import ResponseMeta, ToolResponse
-from ._helpers import build_resolution_note, fetch_page_or_error
+from ._helpers import build_resolution_note, fetch_page_or_error, pre_resolve_keyword
 
 logger = logging.getLogger("CodeWiki")
 
@@ -22,7 +22,7 @@ def register(mcp: FastMCP) -> None:
     """Register the codewiki_read_structure tool on the MCP server."""
 
     @mcp.tool()
-    def codewiki_read_structure(repo_url: str) -> str:
+    def codewiki_read_structure(repo_url: str, ctx: Context) -> str:
         """
         Get a list of documentation topics for a repository from Google CodeWiki.
 
@@ -42,11 +42,14 @@ def register(mcp: FastMCP) -> None:
         Args:
             repo_url: Full repository URL (e.g. https://github.com/facebook/react)
                       or shorthand owner/repo (e.g. facebook/react).
+                      Bare keywords (e.g. 'react') are auto-resolved with
+                      interactive disambiguation.
         """
         start = time.monotonic()
         logger.info("codewiki_read_structure — repo: %s", repo_url)
 
-        original_input = repo_url  # save before validation resolves keywords
+        original_input = repo_url  # save before resolution
+        repo_url = pre_resolve_keyword(repo_url, ctx)  # elicitation for bare keywords
 
         result = fetch_page_or_error(repo_url)
         if isinstance(result, ToolResponse):

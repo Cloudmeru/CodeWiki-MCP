@@ -304,7 +304,7 @@ tools:
 
 ---
 
-## 6. Keyword Resolution (Bare Product Names)
+## 6. Keyword Resolution & Disambiguation (Bare Product Names)
 
 **Routing trigger**: Any prompt using a bare keyword instead of owner/repo format.
 
@@ -332,21 +332,31 @@ tools:
 |------|--------------------|
 | 1 | Master delegates to the appropriate subagent (Researcher, Comparison, etc.) |
 | 2 | Subagent calls a CodeWiki tool with the bare keyword (e.g., `repo_url="vue"`) |
-| 3 | Tool validation auto-resolves the keyword via CodeWiki search (e.g., "vue" → `vuejs/vue`) |
-| 4 | Response includes a resolution note: `> **Resolved:** keyword "vue" → **vuejs/vue** (209,900★)` |
-| 5 | Response shows top alternative candidates |
-| 6 | The rest of the response contains normal CodeWiki documentation |
+| 3 | Tool detects bare keyword and triggers **MCP Elicitation** (if multiple ambiguous repos found) |
+| 4 | VS Code shows a selection prompt: "Multiple repositories match 'vue'. Which do you want?" |
+| 5 | User selects the desired repo (e.g., `vuejs/core` for Vue 3) |
+| 6 | Response includes resolution note: `> **Resolved:** keyword "vue" → **vuejs/core** (52,900★)` |
+| 7 | Response shows top alternative candidates |
+| 8 | The rest of the response contains normal CodeWiki documentation |
+
+**Auto-select (no elicitation)**:
+- Canonical match: "openclaw" → `openclaw/openclaw` (owner == repo == keyword)
+- Single result: only one repo found → auto-selected
+
+**Fallback**: If elicitation is unavailable (client doesn't support it), heuristic
+selection by star count is used (same as v1.1.0 behaviour).
 
 ### Validation
 
-- [ ] Bare keyword "vue" resolves to `vuejs/vue` (highest-star exact repo name match)
-- [ ] Bare keyword "openclaw" resolves to `openclaw/openclaw` (canonical owner==repo match)
-- [ ] Bare keyword "react" resolves to `facebook/react`
+- [ ] Bare keyword "vue" triggers elicitation with multiple options (vuejs/vue, vuejs/core, etc.)
+- [ ] User can select `vuejs/core` (Vue 3) instead of auto-picking `vuejs/vue` (Vue 2)
+- [ ] Bare keyword "openclaw" auto-resolves to `openclaw/openclaw` (canonical match, NO elicitation)
+- [ ] Bare keyword "react" triggers elicitation showing facebook/react and alternatives
 - [ ] Resolution note appears at the top of the response with star count
-- [ ] Alternative candidates are listed (e.g., vuejs/core, panjiachen/vue-element-admin)
-- [ ] The tool response contains actual CodeWiki documentation (not just the resolution note)
-- [ ] owner/repo format still works as before (no resolution note)
-- [ ] Full URLs still work as before (no resolution note)
+- [ ] Alternative candidates are listed
+- [ ] Declining/cancelling elicitation falls back to heuristic selection
+- [ ] owner/repo format still works as before (no resolution note, no elicitation)
+- [ ] Full URLs still work as before (no resolution note, no elicitation)
 
 ---
 

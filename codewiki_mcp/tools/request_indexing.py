@@ -17,7 +17,7 @@ import logging
 import time
 import urllib.parse
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 
 from .. import config
 from ..browser import _get_browser, run_in_browser_loop
@@ -29,7 +29,7 @@ from ..types import (
     ToolResponse,
     validate_topics_input,
 )
-from ._helpers import build_codewiki_url, build_resolution_note
+from ._helpers import build_codewiki_url, build_resolution_note, pre_resolve_keyword
 
 logger = logging.getLogger("CodeWiki")
 
@@ -242,7 +242,7 @@ def register(mcp: FastMCP) -> None:
     """Register the codewiki_request_indexing tool on the MCP server."""
 
     @mcp.tool()
-    def codewiki_request_indexing(repo_url: str) -> str:
+    def codewiki_request_indexing(repo_url: str, ctx: Context) -> str:
         """
         Request Google CodeWiki to index a repository that is not yet available.
 
@@ -262,11 +262,14 @@ def register(mcp: FastMCP) -> None:
         Args:
             repo_url: Full repository URL (e.g. https://github.com/owner/repo)
                       or shorthand owner/repo (e.g. owner/repo).
+                      Bare keywords (e.g. 'vue') are auto-resolved with
+                      interactive disambiguation.
         """
         start = time.monotonic()
         logger.info("codewiki_request_indexing — repo: %s", repo_url)
 
-        original_input = repo_url  # save before validation resolves keywords
+        original_input = repo_url  # save before resolution
+        repo_url = pre_resolve_keyword(repo_url, ctx)  # elicitation for bare keywords
 
         validated = validate_topics_input(repo_url)
         if isinstance(validated, ToolResponse):

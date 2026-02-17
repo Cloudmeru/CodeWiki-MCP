@@ -10,13 +10,18 @@ from __future__ import annotations
 import logging
 import time
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 
 from .. import config
 from ..cache import get_cached_topics, set_cached_topics
 from ..parser import page_to_topic_list
 from ..types import ResponseMeta, ToolResponse, validate_topics_input
-from ._helpers import build_resolution_note, fetch_page_or_error, truncate_response
+from ._helpers import (
+    build_resolution_note,
+    fetch_page_or_error,
+    pre_resolve_keyword,
+    truncate_response,
+)
 
 logger = logging.getLogger("CodeWiki")
 
@@ -28,7 +33,7 @@ def register(mcp: FastMCP) -> None:
     """Register the codewiki_list_topics tool on the MCP server."""
 
     @mcp.tool()
-    def codewiki_list_topics(repo_url: str) -> str:
+    def codewiki_list_topics(repo_url: str, ctx: Context) -> str:
         """
         Retrieve the overview / available topics for a repository from Google CodeWiki.
 
@@ -47,11 +52,14 @@ def register(mcp: FastMCP) -> None:
         Args:
             repo_url: Full repository URL (e.g. https://github.com/microsoft/vscode-copilot-chat)
                       or shorthand owner/repo (e.g. microsoft/vscode-copilot-chat).
+                      Bare keywords (e.g. 'vue') are auto-resolved with
+                      interactive disambiguation.
         """
         start = time.monotonic()
         logger.info("codewiki_list_topics — repo: %s", repo_url)
 
-        original_input = repo_url  # save before validation resolves keywords
+        original_input = repo_url  # save before resolution
+        repo_url = pre_resolve_keyword(repo_url, ctx)  # elicitation for bare keywords
 
         # Check topic-specific cache first (30-min TTL)
         validated = validate_topics_input(repo_url)

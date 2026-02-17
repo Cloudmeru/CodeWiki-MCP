@@ -11,7 +11,7 @@ import asyncio
 import logging
 import time
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 
 from .. import config
 from ..browser import _get_browser, run_in_browser_loop
@@ -35,7 +35,7 @@ from ..types import (
     ToolResponse,
     validate_search_input,
 )
-from ._helpers import build_codewiki_url, build_resolution_note
+from ._helpers import build_codewiki_url, build_resolution_note, pre_resolve_keyword
 
 logger = logging.getLogger("CodeWiki")
 
@@ -423,7 +423,7 @@ def register(mcp: FastMCP) -> None:
     """Register the codewiki_search_wiki tool on the MCP server."""
 
     @mcp.tool()
-    def codewiki_search_wiki(repo_url: str, query: str = "") -> str:
+    def codewiki_search_wiki(repo_url: str, query: str = "", ctx: Context | None = None) -> str:
         """
         Ask Google CodeWiki a question about an open-source repository.
 
@@ -439,12 +439,15 @@ def register(mcp: FastMCP) -> None:
         Args:
             repo_url: Full repository URL (e.g. https://github.com/microsoft/vscode-copilot-chat)
                       or shorthand owner/repo (e.g. microsoft/vscode-copilot-chat).
+                      Bare keywords (e.g. 'vue') are auto-resolved with
+                      interactive disambiguation.
             query: The question to ask (required).
         """
         start = time.monotonic()
         logger.info("codewiki_search_wiki — repo: %s, query: %s", repo_url, query)
 
-        original_input = repo_url  # save before validation resolves keywords
+        original_input = repo_url  # save before resolution
+        repo_url = pre_resolve_keyword(repo_url, ctx)  # elicitation for bare keywords
 
         validated = validate_search_input(repo_url, query)
         if isinstance(validated, ToolResponse):

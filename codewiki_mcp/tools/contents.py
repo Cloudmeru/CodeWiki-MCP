@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import time
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 
 from .. import config
 from ..parser import get_section_by_title
@@ -19,7 +19,12 @@ from ..types import (
     ToolResponse,
     validate_contents_input,
 )
-from ._helpers import build_resolution_note, fetch_page_or_error, truncate_response
+from ._helpers import (
+    build_resolution_note,
+    fetch_page_or_error,
+    pre_resolve_keyword,
+    truncate_response,
+)
 
 logger = logging.getLogger("CodeWiki")
 
@@ -30,6 +35,7 @@ def register(mcp: FastMCP) -> None:
     @mcp.tool()
     def codewiki_read_contents(
         repo_url: str,
+        ctx: Context,
         section_title: str = "",
         offset: int = 0,
         limit: int = 5,
@@ -57,6 +63,8 @@ def register(mcp: FastMCP) -> None:
         Args:
             repo_url: Full repository URL (e.g. https://github.com/facebook/react)
                       or shorthand owner/repo (e.g. facebook/react).
+                      Bare keywords (e.g. 'react') are auto-resolved with
+                      interactive disambiguation.
             section_title: Optional. Title (or partial title) of a specific section
                           to retrieve. If empty, returns the full wiki.
             offset: Section index to start from (0-based, default 0).
@@ -71,7 +79,8 @@ def register(mcp: FastMCP) -> None:
             limit,
         )
 
-        original_input = repo_url  # save before validation resolves keywords
+        original_input = repo_url  # save before resolution
+        repo_url = pre_resolve_keyword(repo_url, ctx)  # elicitation for bare keywords
 
         validated = validate_contents_input(repo_url, section_title, offset, limit)
         if isinstance(validated, ToolResponse):

@@ -53,6 +53,9 @@ Analyze the user's request and delegate to the right subagent:
 2. **Delegate** immediately to the chosen subagent with a clear, focused prompt:
    - The repo URL (owner/repo format), or a bare keyword like "vue" — tools
      automatically resolve keywords to the correct owner/repo via CodeWiki search.
+     When multiple repos match, VS Code shows an interactive selection prompt
+     (MCP Elicitation) so the user can pick the right one (e.g., "vue" →
+     vuejs/core for Vue 3, not vuejs/vue for Vue 2).
    - The specific question to answer
    - Example: `"Explain what facebook/prophet is and its main features."`
    - Do NOT include pre-fetched data — subagents are stateless and have

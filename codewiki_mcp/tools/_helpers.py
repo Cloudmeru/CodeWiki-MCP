@@ -8,17 +8,21 @@ in-flight deduplication, rate limiting, and keyword resolution notes.
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from .. import config
 from ..dedup import dedup_fetch
 from ..parser import WikiPage, fetch_wiki_page
 from ..rate_limit import check_rate_limit
-from ..resolver import is_bare_keyword, resolve_keyword
+from ..resolver import is_bare_keyword, resolve_keyword, resolve_keyword_interactive
 from ..types import (
     ErrorCode,
     ToolResponse,
     validate_topics_input,
 )
+
+if TYPE_CHECKING:
+    from mcp.server.fastmcp import Context
 
 # ---------------------------------------------------------------------------
 # Not-indexed detection
@@ -35,6 +39,35 @@ def _is_not_indexed(page: WikiPage) -> bool:
     return any(ind.lower() in text for ind in config.NOT_INDEXED_INDICATORS)
 
 logger = logging.getLogger("CodeWiki")
+
+
+# ---------------------------------------------------------------------------
+# Pre-resolution: bare keyword → owner/repo with elicitation
+# ---------------------------------------------------------------------------
+def pre_resolve_keyword(raw_input: str, ctx: Context | None = None) -> str:
+    """Resolve bare keywords interactively before passing to Pydantic validators.
+
+    If *raw_input* is a bare keyword (e.g. "vue"), this uses
+    ``resolve_keyword_interactive()`` with MCP elicitation to let the user
+    pick from multiple candidates.  If already ``owner/repo`` or a full URL,
+    returns unchanged.
+
+    Args:
+        raw_input: The user-supplied repo identifier.
+        ctx: MCP Context for elicitation (None = skip elicitation).
+
+    Returns:
+        Resolved ``owner/repo`` string, or the original input unchanged.
+    """
+    if not is_bare_keyword(raw_input):
+        return raw_input
+
+    resolved, _results = resolve_keyword_interactive(raw_input, ctx)
+    if resolved:
+        return resolved
+
+    # Could not resolve — return original; the validator will give a helpful error
+    return raw_input
 
 
 # ---------------------------------------------------------------------------

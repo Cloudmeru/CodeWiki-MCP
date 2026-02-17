@@ -4,7 +4,12 @@ When a user provides a bare keyword like "vue", "react", or "openclaw" instead
 of a proper owner/repo or full URL, this module searches CodeWiki's search page
 (https://codewiki.google/search?q=KEYWORD) and picks the most appropriate repo.
 
-Selection heuristics:
+**Disambiguation via MCP Elicitation** (v1.2.0+):
+When multiple plausible repos match a keyword, the resolver presents an
+interactive selection prompt to the user via the MCP Elicitation protocol
+(spec 2025-06-18).  VS Code 0.29+ supports this natively.
+
+Fallback heuristics (when elicitation is unavailable):
 1. Exact owner match (keyword == owner) → pick repo with most stars
 2. Exact repo-name match (keyword == repo) → pick repo with most stars
 3. Otherwise → pick the first result (highest stars, CodeWiki's default sort)
@@ -19,10 +24,16 @@ import logging
 import re
 import urllib.parse
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, Literal
+
+from pydantic import BaseModel, Field
 
 from . import config
 from .browser import _get_browser, run_in_browser_loop
 from .stealth import apply_stealth_scripts, stealth_context_options
+
+if TYPE_CHECKING:
+    from mcp.server.fastmcp import Context
 
 logger = logging.getLogger("CodeWiki")
 
@@ -268,6 +279,153 @@ def resolve_keyword(keyword: str) -> tuple[str | None, list[SearchResult]]:
 
     logger.info(
         "resolver: keyword '%s' → %s (%d★, %d candidates)",
+        keyword, best.full_name, best.stars, len(results),
+    )
+    return best.full_name, results
+
+
+# ---------------------------------------------------------------------------
+# MCP Elicitation — interactive disambiguation (v1.2.0+)
+# ---------------------------------------------------------------------------
+MAX_ELICITATION_CHOICES = 6  # max options to show user
+
+
+def _format_stars(stars: int) -> str:
+    """Format star count for display (e.g. 209900 → '209.9k')."""
+    if stars >= 1_000_000:
+        return f"{stars / 1_000_000:.1f}M"
+    if stars >= 1000:
+        return f"{stars / 1000:.1f}k"
+    return str(stars)
+
+
+def _has_canonical_match(keyword: str, results: list[SearchResult]) -> SearchResult | None:
+    """Return repo where keyword == owner == repo (e.g. 'openclaw' → openclaw/openclaw)."""
+    kw = keyword.lower().strip()
+    for r in results:
+        if r.owner.lower() == kw and r.repo.lower() == kw:
+            return r
+    return None
+
+
+def build_repo_choice_model(results: list[SearchResult]) -> type[BaseModel]:
+    """Create a dynamic Pydantic model with Literal enum for MCP elicitation.
+
+    Produces a JSON schema with ``"enum"`` values that VS Code renders
+    as a selection list in the chat UI.
+    """
+    top = results[:MAX_ELICITATION_CHOICES]
+    options = tuple(r.full_name for r in top)
+    literal_type = Literal[options]  # type: ignore[valid-type]
+
+    # Build rich descriptions for the enum help text
+    lines: list[str] = []
+    for r in top:
+        desc = r.full_name
+        if r.stars:
+            desc += f" ({_format_stars(r.stars)}★)"
+        lines.append(f"• {desc}")
+
+    class RepoChoice(BaseModel):
+        """User's repository selection from disambiguation prompt."""
+
+        selected_repo: literal_type = Field(  # type: ignore[valid-type]
+            description="Select the repository:\n" + "\n".join(lines),
+        )
+
+    return RepoChoice
+
+
+async def _elicit_repo_choice(
+    keyword: str,
+    results: list[SearchResult],
+    ctx: Context,
+) -> str | None:
+    """Ask the user to pick a repo via MCP elicitation.
+
+    Returns the selected ``owner/repo`` or ``None`` if user declines/cancels.
+    """
+    Model = build_repo_choice_model(results)  # noqa: N806
+
+    # Build a descriptive message for the elicitation prompt
+    top = results[:MAX_ELICITATION_CHOICES]
+    lines = [f'Multiple repositories match **"{keyword}"**.', ""]
+    for i, r in enumerate(top, 1):
+        star_str = f" ({_format_stars(r.stars)}★)" if r.stars else ""
+        lines.append(f"{i}. **{r.full_name}**{star_str}")
+    lines.append("")
+    lines.append("Which repository do you want to explore?")
+    message = "\n".join(lines)
+
+    result = await ctx.elicit(message=message, schema=Model)
+
+    if result.action == "accept" and result.data is not None:
+        selected: str = result.data.selected_repo  # type: ignore[attr-defined]
+        logger.info("resolver: user selected '%s' for keyword '%s'", selected, keyword)
+        return selected
+
+    logger.info("resolver: user %s elicitation for keyword '%s'", result.action, keyword)
+    return None
+
+
+def resolve_keyword_interactive(
+    keyword: str,
+    ctx: Context | None = None,
+) -> tuple[str | None, list[SearchResult]]:
+    """Resolve a bare keyword with interactive disambiguation.
+
+    This is the primary entry point for tools.  It:
+    1. Fetches search results (cached for 30 min).
+    2. Auto-selects if only 1 result or canonical match.
+    3. Tries MCP elicitation for ambiguous cases (when *ctx* is available).
+    4. Falls back to heuristic selection if elicitation fails or is unsupported.
+
+    Returns:
+        (selected_owner_repo, all_results) — same shape as ``resolve_keyword()``.
+    """
+    results = _fetch_search_results(keyword)
+    if not results:
+        return None, []
+
+    # --- Single result → auto-select ---
+    if len(results) == 1:
+        logger.info("resolver: single result for '%s' → %s", keyword, results[0].full_name)
+        return results[0].full_name, results
+
+    # --- Canonical match (keyword == owner == repo) → auto-select ---
+    canonical = _has_canonical_match(keyword, results)
+    if canonical:
+        logger.info(
+            "resolver: canonical match for '%s' → %s (%d★)",
+            keyword, canonical.full_name, canonical.stars,
+        )
+        return canonical.full_name, results
+
+    # --- Multiple ambiguous results → try elicitation ---
+    if ctx is not None:
+        try:
+            import anyio.from_thread  # noqa: E402
+
+            selected = anyio.from_thread.run(_elicit_repo_choice, keyword, results, ctx)
+            if selected:
+                return selected, results
+            # User declined/cancelled → fall through to heuristic
+            logger.info("resolver: elicitation declined for '%s', using heuristic", keyword)
+        except Exception as exc:
+            logger.warning(
+                "resolver: elicitation failed for '%s' (client may not support it): %s",
+                keyword,
+                exc,
+            )
+            # Fall through to heuristic selection
+
+    # --- Fallback: heuristic selection ---
+    best = _select_best_match(keyword, results)
+    if best is None:
+        return None, results
+
+    logger.info(
+        "resolver: heuristic fallback '%s' → %s (%d★, %d candidates)",
         keyword, best.full_name, best.stars, len(results),
     )
     return best.full_name, results

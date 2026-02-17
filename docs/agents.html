@@ -650,27 +650,40 @@ if response["status"] == "error":
     </table>
 
     <!-- Keyword Resolution -->
-    <h2>Keyword Resolution</h2>
+    <h2>Keyword Resolution &amp; Disambiguation</h2>
     <p>All tools accept bare product keywords (e.g., <code>"vue"</code>, <code>"react"</code>,
        <code>"openclaw"</code>) in addition to <code>owner/repo</code> shorthand and full URLs.
-       Keywords are automatically resolved to the correct repository via CodeWiki's search page.</p>
+       Keywords are resolved via CodeWiki's search page with <strong>interactive disambiguation</strong>
+       using the MCP Elicitation protocol (VS Code 0.29+).</p>
     <h3>How It Works</h3>
     <ol>
       <li>Input validation detects bare keywords (single words with no <code>/</code> or URL scheme)</li>
       <li>CodeWiki's search page is queried with the keyword</li>
-      <li>The best match is selected using star-count heuristics:
+      <li>Resolution strategy:
         <ul>
-          <li>Canonical match (owner == repo == keyword) → e.g., "openclaw" → <code>openclaw/openclaw</code></li>
-          <li>Exact repo name match → e.g., "vue" → <code>vuejs/vue</code></li>
-          <li>Owner contains keyword → e.g., "react" → <code>facebook/react</code></li>
-          <li>Fallback to highest-star result</li>
+          <li><strong>Single result</strong> → auto-select</li>
+          <li><strong>Canonical match</strong> (owner == repo == keyword) → auto-select,
+              e.g., "openclaw" → <code>openclaw/openclaw</code></li>
+          <li><strong>Multiple ambiguous results</strong> → <em>MCP Elicitation</em>:
+              VS Code presents a selection prompt listing the top candidates with star counts,
+              and the user picks the correct repo</li>
+          <li><strong>Fallback</strong> (elicitation unavailable) → heuristic selection by star count</li>
         </ul>
       </li>
       <li>The response includes a resolution note showing what was resolved and top alternatives</li>
     </ol>
-    <h3>Example Resolution Note</h3>
-    <pre><code>&gt; **Resolved:** keyword "vue" → **vuejs/vue** (209,900★)
-&gt; Other candidates: panjiachen/vue-element-admin (90,300★), vuejs/awesome-vue (73,600★), vuejs/core (52,900★)</code></pre>
+    <h3>Elicitation Prompt Example</h3>
+    <pre><code>Multiple repositories match "vue".
+
+1. vuejs/vue (209.9k★)
+2. vuejs/core (52.9k★)
+3. panjiachen/vue-element-admin (90.3k★)
+
+Which repository do you want to explore?
+→ User selects "vuejs/core"</code></pre>
+    <h3>Resolution Note (in response)</h3>
+    <pre><code>&gt; **Resolved:** keyword "vue" → **vuejs/core** (52,900★)
+&gt; Other candidates: vuejs/vue (209,900★), panjiachen/vue-element-admin (90,300★)</code></pre>
 
     <!-- Token Efficiency -->
     <h2>Token Efficiency Guide</h2>
