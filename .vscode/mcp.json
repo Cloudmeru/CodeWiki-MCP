@@ -2,7 +2,7 @@
   "servers": {
     "codewiki-mcp": {
       "type": "stdio",
-      "command": "codewiki-mcp"
+      "command": "C:\\Users\\alber\\anaconda3\\Scripts\\codewiki-mcp.exe"
     }
   }
 }
