@@ -322,12 +322,18 @@ tools:
 ---
 
 6-Phase Workflow:
-1. DECOMPOSE — Parse repos and desired parts from each
-2. RESEARCH  — codewiki tools to gather relevant sections per repo
-3. EXTRACT   — Document interfaces, dependencies, patterns per part
-4. RESOLVE   — Identify and fix cross-repo incompatibilities
-5. DESIGN    — Integration architecture (how parts connect)
-6. BLUEPRINT — Directory structure, code snippets, implementation guide
+1. DECOMPOSE — Parse repos + desired parts (specific or vague)
+2. DISCOVER  — For vague requests: explore repos, find standout
+               features, select complementary parts automatically
+3. RESEARCH  — codewiki tools to gather relevant sections per repo
+4. EXTRACT   — Document interfaces, dependencies, patterns per part
+5. RESOLVE   — Identify and fix cross-repo incompatibilities
+6. DESIGN    — Integration architecture (how parts connect)
+7. BLUEPRINT — Directory structure, code snippets, implementation guide
+
+Handles two request types:
+- Specific: "Take auth from A, events from B" → skip DISCOVER
+- Vague: "Combine best parts from A and B" → DISCOVER first
 
 Output: Parts table, compatibility analysis, Mermaid architecture
 diagram, directory structure, integration code, step-by-step guide.

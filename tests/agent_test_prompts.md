@@ -15,7 +15,7 @@
 > **Prerequisites**:
 > 1. The `codewiki-mcp` MCP server must be running and configured in
 >    `.vscode/mcp.json` (included in this repo).
-> 2. All 5 `.agent.md` files must be in `.github/agents/`.
+> 2. All 6 `.agent.md` files must be in `.github/agents/`.
 
 ---
 
@@ -268,6 +268,15 @@ tools:
 @codewiki Combine the authentication approach from supabase/supabase with the event pipeline from apache/kafka into a real-time auth notification system.
 ```
 
+```
+@codewiki Can you combine the best parts from fastapi/fastapi and pallets/flask into a new web framework solution?
+```
+
+> **Note:** The last prompt is intentionally vague — the user does NOT specify
+> which parts to take. The Synthesizer should activate its DISCOVER phase:
+> explore both repos, identify standout features, select complementary parts,
+> and explain why it chose them.
+
 ### Expected Behaviour
 
 | Step | What should happen |
@@ -278,6 +287,7 @@ tools:
 | 4 | Synthesizer extracts the specific parts the user requested from each repo |
 | 5 | Synthesizer identifies cross-repo conflicts and proposes adapters |
 | 6 | Synthesizer delivers a blueprint: architecture diagram, directory structure, integration code, implementation guide |
+| 7 | For vague requests: Synthesizer shows a "Parts Selected" table explaining WHY it chose each part |
 
 ### Validation
 
@@ -288,6 +298,7 @@ tools:
 - [ ] Response includes **Integration Architecture** (Mermaid diagram or description)
 - [ ] Response includes **Directory Structure** for the new project
 - [ ] Response includes **Implementation Guide** with actionable steps
+- [ ] For vague requests: includes **Parts Selected** table with reasoning
 - [ ] All content is grounded in CodeWiki data, not generic knowledge
 - [ ] Master presents the **full** subagent response (not a brief summary)
 
