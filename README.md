@@ -1,7 +1,7 @@
 # CodeWiki MCP Server
 
 <p align="center">
-  <img src="docs/favicon.svg" alt="CodeWiki MCP logo" width="96" height="96">
+  <img src="https://raw.githubusercontent.com/Cloudmeru/CodeWiki-MCP/main/docs/favicon.svg" alt="CodeWiki MCP logo" width="96" height="96">
 </p>
 
 <p align="center">
@@ -13,6 +13,18 @@
 An [MCP](https://modelcontextprotocol.io/) server that brings [Google CodeWiki](https://codewiki.google/) into your editor. Query any GitHub, GitLab, or Bitbucket repository and get AI-generated answers about the codebase — powered by Gemini.
 
 **[Documentation](https://cloudmeru.github.io/CodeWiki-MCP)** · **[Release Notes](https://cloudmeru.github.io/CodeWiki-MCP/release-notes.html)** · **[PyPI](https://pypi.org/project/codewiki-mcp/)**
+
+---
+
+## Sample Conversation
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Cloudmeru/CodeWiki-MCP/main/docs/sample_chat.gif" alt="Sample conversation using CodeWiki MCP and CodeWiki Agent" width="800">
+</p>
+
+<p align="center">
+  <em>Sample conversation using CodeWiki MCP server with the CodeWiki Agent in VS Code Chat.</em>
+</p>
 
 ---
 
