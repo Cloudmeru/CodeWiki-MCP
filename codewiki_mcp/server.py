@@ -40,8 +40,8 @@ def _shutdown(signum: int, _frame) -> None:
         )  # pylint: disable=import-outside-toplevel
 
         cleanup_pool()
-    except Exception:  # pylint: disable=broad-except
-        pass
+    except Exception:
+        logger.debug("Suppressed exception during cleanup", exc_info=True)
 
     # Clean up the shared Playwright browser (best-effort)
     try:
@@ -51,8 +51,8 @@ def _shutdown(signum: int, _frame) -> None:
         )
 
         run_in_browser_loop(cleanup_browser())
-    except Exception:  # pylint: disable=broad-except
-        pass
+    except Exception:
+        logger.debug("Suppressed exception during cleanup", exc_info=True)
 
     logger.info("CodeWiki MCP server stopped.")
     sys.exit(0)
@@ -157,8 +157,8 @@ def main(argv: list[str] | None = None) -> None:
             )  # pylint: disable=import-outside-toplevel
 
             cleanup_pool()
-        except Exception:  # pylint: disable=broad-except
-            pass
+        except Exception:
+            logger.debug("Suppressed exception during cleanup", exc_info=True)
         try:
             from .browser import (  # pylint: disable=import-outside-toplevel
                 cleanup_browser,
@@ -166,8 +166,8 @@ def main(argv: list[str] | None = None) -> None:
             )
 
             run_in_browser_loop(cleanup_browser())
-        except Exception:  # pylint: disable=broad-except
-            pass
+        except Exception:
+            logger.debug("Suppressed exception during cleanup", exc_info=True)
         logger.info("CodeWiki MCP server stopped.")
 
 

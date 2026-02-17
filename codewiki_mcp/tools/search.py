@@ -51,8 +51,8 @@ async def _ensure_chat_open(page) -> bool:
         if await chat.is_visible(timeout=2000):
             logger.debug("Chat panel already open")
             return True
-    except Exception:  # pylint: disable=broad-except
-        pass
+    except Exception:
+        logger.debug("Suppressed exception during cleanup", exc_info=True)
 
     # Try clicking the toggle button
     try:
@@ -64,8 +64,8 @@ async def _ensure_chat_open(page) -> bool:
             chat = page.locator(config.CHAT_OPEN_SELECTOR)
             if await chat.is_visible(timeout=3000):
                 return True
-    except Exception:  # pylint: disable=broad-except
-        pass
+    except Exception:
+        logger.debug("Suppressed exception during cleanup", exc_info=True)
 
     return False
 
@@ -326,8 +326,8 @@ async def _search_fresh_context(inp: SearchInput, target_url: str) -> ToolRespon
                 "body-content-section, documentation-markdown, h1",
                 timeout=config.ELEMENT_WAIT_TIMEOUT_SECONDS * 1000,
             )
-        except Exception:  # pylint: disable=broad-except
-            pass
+        except Exception:
+            logger.debug("Suppressed exception during cleanup", exc_info=True)
         await asyncio.sleep(config.JS_LOAD_DELAY_SECONDS)
 
         chat_visible = await _ensure_chat_open(page)

@@ -164,8 +164,8 @@ class ResponseMeta(BaseModel):
 
 
 def _compute_hash(data: str) -> str:
-    """Compute a short MD5 hash of *data* for dedup / idempotency detection."""
-    return hashlib.md5(data.encode()).hexdigest()[:12]
+    """Compute a short SHA-256 hash of *data* for dedup / idempotency detection."""
+    return hashlib.sha256(data.encode()).hexdigest()[:16]
 
 
 class ToolResponse(BaseModel):

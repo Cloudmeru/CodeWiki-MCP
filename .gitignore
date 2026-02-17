@@ -19,3 +19,4 @@ venv/
 .ruff_cache/
 .mypy_cache/
 scripts/
+.github/agents/security.agent.md

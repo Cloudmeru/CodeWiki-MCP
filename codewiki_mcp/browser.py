@@ -103,14 +103,14 @@ async def cleanup_browser():
     if _browser:
         try:
             await _browser.close()
-        except Exception:  # pylint: disable=broad-except
-            pass
+        except Exception:
+            logger.debug("Suppressed exception during cleanup", exc_info=True)
         _browser = None
     if _pw:
         try:
             await _pw.stop()
-        except Exception:  # pylint: disable=broad-except
-            pass
+        except Exception:
+            logger.debug("Suppressed exception during cleanup", exc_info=True)
         _pw = None
     logger.debug("Playwright browser cleaned up")
 

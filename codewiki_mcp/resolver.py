@@ -249,6 +249,12 @@ def _github_search(keyword: str, max_results: int = 10) -> list[SearchResult]:
     })
     url = f"{GITHUB_API_SEARCH_URL}?{query}"
 
+    # Security: enforce HTTPS + allowed host before outbound request
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme != "https" or parsed.netloc != "api.github.com":
+        logger.warning("resolver: blocked outbound request to %s (not in allowlist)", url)
+        return []
+
     try:
         req = urllib.request.Request(
             url,

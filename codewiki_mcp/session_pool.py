@@ -50,12 +50,12 @@ async def _close_entry(entry: _PoolEntry) -> None:
     """Gracefully close a pool entry's page and context."""
     try:
         await entry.page.close()
-    except Exception:  # pylint: disable=broad-except
-        pass
+    except Exception:
+        logger.debug("Suppressed exception during cleanup", exc_info=True)
     try:
         await entry.context.close()
-    except Exception:  # pylint: disable=broad-except
-        pass
+    except Exception:
+        logger.debug("Suppressed exception during cleanup", exc_info=True)
     logger.debug("Closed session for %s (used %d times)", entry.url, entry.uses)
 
 
@@ -87,8 +87,8 @@ async def _create_entry(url: str) -> _PoolEntry:
             "body-content-section, documentation-markdown, h1",
             timeout=config.ELEMENT_WAIT_TIMEOUT_SECONDS * 1000,
         )
-    except Exception:  # pylint: disable=broad-except
-        pass
+    except Exception:
+        logger.debug("Suppressed exception during cleanup", exc_info=True)
     await asyncio.sleep(config.JS_LOAD_DELAY_SECONDS)
 
     entry = _PoolEntry(url=url, context=context, page=page)

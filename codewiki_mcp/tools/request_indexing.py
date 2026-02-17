@@ -198,7 +198,7 @@ async def _request_indexing_impl(repo_url: str) -> ToolResponse:
             if await heading.is_visible(timeout=5_000):
                 confirmed = True
         except Exception:
-            pass
+            logger.debug("Suppressed exception during cleanup", exc_info=True)
 
         if not confirmed:
             # Check the page text as fallback
@@ -207,7 +207,7 @@ async def _request_indexing_impl(repo_url: str) -> ToolResponse:
                 if "repo requested" in body_text.lower() or "we'll review" in body_text.lower():
                     confirmed = True
             except Exception:
-                pass
+                logger.debug("Suppressed exception during cleanup", exc_info=True)
 
         codewiki_url = build_codewiki_url(repo_url)
         if confirmed:
