@@ -17,7 +17,10 @@ import logging
 import time
 import urllib.parse
 
+from typing import Literal
+
 from mcp.server.fastmcp import Context, FastMCP
+from pydantic import BaseModel, Field
 
 from .. import config
 from ..browser import _get_browser, run_in_browser_loop
@@ -41,6 +44,43 @@ REQUEST_REPO_BUTTON = "button:has-text('Request repository')"
 DIALOG_URL_INPUT = "dialog input, dialog textbox"
 DIALOG_SUBMIT_BUTTON = "dialog button:has-text('Submit')"
 CONFIRMATION_HEADING = "h3:has-text('Repo requested')"
+
+
+# ---------------------------------------------------------------------------
+# MCP Elicitation — indexing confirmation
+# ---------------------------------------------------------------------------
+class _IndexingConfirmation(BaseModel):
+    """Schema for the indexing confirmation elicitation."""
+
+    confirm: Literal["Yes, request indexing", "No, skip indexing"] = Field(
+        description="Do you want to request CodeWiki to index this repository?",
+    )
+
+
+async def _elicit_indexing_confirmation(repo_url: str, ctx: Context) -> bool:
+    """Ask the user to confirm before submitting an indexing request.
+
+    Returns *True* if the user accepted, *False* otherwise.
+    """
+    result = await ctx.elicit(
+        message=(
+            f"The repository **{repo_url}** will be submitted to Google "
+            f"CodeWiki for indexing.\n\n"
+            f"**Note:** Google reviews requests and indexes repos based on "
+            f"popularity and demand — there is no guaranteed timeline.\n\n"
+            f"Would you like to proceed?"
+        ),
+        schema=_IndexingConfirmation,
+    )
+    if result.action == "accept":
+        # Handle both dict and Pydantic model responses
+        value = (
+            result.data.get("confirm", "")
+            if isinstance(result.data, dict)
+            else getattr(result.data, "confirm", "")
+        )
+        return value == "Yes, request indexing"
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -276,6 +316,40 @@ def register(mcp: FastMCP) -> None:
             return validated.to_text()
 
         note = build_resolution_note(original_input, validated.repo_url)
+
+        # --- Elicit confirmation before submitting indexing request ---
+        try:
+            import anyio.from_thread  # noqa: E402
+
+            confirmed = anyio.from_thread.run(
+                _elicit_indexing_confirmation, validated.repo_url, ctx,
+            )
+            if not confirmed:
+                skip_msg = (
+                    f"Indexing request **skipped** for **{validated.repo_url}**.\n\n"
+                    f"You can request indexing later by calling this tool again, "
+                    f"or submit manually at: "
+                    f"{config.CODEWIKI_BASE_URL}/search?q="
+                    f"{urllib.parse.quote(validated.repo_url, safe='')}"
+                )
+                result = ToolResponse(
+                    status=ResponseStatus.OK,
+                    code=ErrorCode.NOT_INDEXED,
+                    data=skip_msg,
+                    repo_url=validated.repo_url,
+                )
+                result.meta.elapsed_ms = int((time.monotonic() - start) * 1000)
+                if note:
+                    result.data = note + result.data
+                return result.to_text()
+        except Exception as exc:
+            logger.warning(
+                "Elicitation failed for indexing confirmation (client may not "
+                "support it): %s — proceeding without confirmation",
+                exc,
+            )
+            # Fall through: submit without confirmation (backward compat)
+
         result = _run_request_indexing(validated.repo_url)
         result.meta.elapsed_ms = int((time.monotonic() - start) * 1000)
         if result.data and note:

@@ -9,20 +9,28 @@ When multiple plausible repos match a keyword, the resolver presents an
 interactive selection prompt to the user via the MCP Elicitation protocol
 (spec 2025-06-18).  VS Code 0.29+ supports this natively.
 
+**GitHub API fallback** (v1.3.0+):
+When CodeWiki search returns 0 results (typo, misspelling, niche repo),
+the resolver falls back to the GitHub REST API
+(``api.github.com/search/repositories``) which supports fuzzy matching.
+This handles typos like "veu" → "vue" or unknown repos not in CodeWiki.
+
 Fallback heuristics (when elicitation is unavailable):
 1. Exact owner match (keyword == owner) → pick repo with most stars
 2. Exact repo-name match (keyword == repo) → pick repo with most stars
 3. Otherwise → pick the first result (highest stars, CodeWiki's default sort)
 
-Results are cached for 30 minutes to avoid redundant Playwright calls.
+Results are cached for 30 minutes to avoid redundant calls.
 """
 
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import re
 import urllib.parse
+import urllib.request
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
@@ -208,6 +216,79 @@ def _fetch_search_results(keyword: str) -> list[SearchResult]:
 
 
 # ---------------------------------------------------------------------------
+# GitHub API fallback — handles typos, misspellings, niche repos
+# ---------------------------------------------------------------------------
+GITHUB_API_SEARCH_URL = "https://api.github.com/search/repositories"
+GITHUB_API_TIMEOUT = 10  # seconds
+
+_github_cache: TTLCache[str, list[SearchResult]] = TTLCache(
+    maxsize=50,
+    ttl=1800,  # 30 minutes
+)
+
+
+def _github_search(keyword: str, max_results: int = 10) -> list[SearchResult]:
+    """Search GitHub REST API for repositories matching *keyword*.
+
+    GitHub's search supports fuzzy/typo matching — e.g. "veu" finds "vue".
+    Uses ``urllib.request`` (stdlib) so no extra dependencies needed.
+
+    Returns a list of SearchResult (same shape as CodeWiki results)
+    so the elicitation and selection logic is reusable.
+    """
+    cached = _github_cache.get(keyword.lower())
+    if cached is not None:
+        logger.debug("resolver: GitHub cache HIT for '%s' (%d results)", keyword, len(cached))
+        return cached
+
+    query = urllib.parse.urlencode({
+        "q": keyword,
+        "sort": "stars",
+        "order": "desc",
+        "per_page": str(max_results),
+    })
+    url = f"{GITHUB_API_SEARCH_URL}?{query}"
+
+    try:
+        req = urllib.request.Request(
+            url,
+            headers={
+                "Accept": "application/vnd.github+json",
+                "User-Agent": "CodeWiki-MCP/1.3.0",
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=GITHUB_API_TIMEOUT) as resp:
+            data = json.loads(resp.read().decode())
+
+        results: list[SearchResult] = []
+        for item in data.get("items", [])[:max_results]:
+            full_name = item.get("full_name", "")
+            if "/" not in full_name:
+                continue
+            owner, repo = full_name.split("/", 1)
+            results.append(SearchResult(
+                owner=owner,
+                repo=repo,
+                description=(item.get("description") or "")[:200],
+                stars=item.get("stargazers_count", 0),
+                codewiki_url=f"{config.CODEWIKI_BASE_URL}/github.com/{full_name}",
+            ))
+
+        logger.info(
+            "resolver: GitHub API found %d results for '%s'",
+            len(results), keyword,
+        )
+        _github_cache[keyword.lower()] = results
+        return results
+
+    except Exception as exc:
+        logger.warning("resolver: GitHub API search failed for '%s': %s", keyword, exc)
+        _github_cache[keyword.lower()] = []
+        return []
+
+
+# ---------------------------------------------------------------------------
 # Selection heuristics — pick the best repo from search results
 # ---------------------------------------------------------------------------
 def _select_best_match(keyword: str, results: list[SearchResult]) -> SearchResult | None:
@@ -375,29 +456,44 @@ def resolve_keyword_interactive(
     """Resolve a bare keyword with interactive disambiguation.
 
     This is the primary entry point for tools.  It:
-    1. Fetches search results (cached for 30 min).
-    2. Auto-selects if only 1 result or canonical match.
-    3. Tries MCP elicitation for ambiguous cases (when *ctx* is available).
-    4. Falls back to heuristic selection if elicitation fails or is unsupported.
+    1. Fetches search results from CodeWiki (cached for 30 min).
+    2. If CodeWiki returns 0 results → falls back to GitHub API search
+       (handles typos, misspellings, niche repos).
+    3. Auto-selects if only 1 result or canonical match.
+    4. Tries MCP elicitation for ambiguous cases (when *ctx* is available).
+    5. Falls back to heuristic selection if elicitation fails or is unsupported.
 
     Returns:
         (selected_owner_repo, all_results) — same shape as ``resolve_keyword()``.
     """
     results = _fetch_search_results(keyword)
+
+    # --- GitHub API fallback for typos / not found on CodeWiki ---
+    source = "codewiki"
     if not results:
-        return None, []
+        logger.info(
+            "resolver: no CodeWiki results for '%s', trying GitHub API fallback",
+            keyword,
+        )
+        results = _github_search(keyword)
+        source = "github"
+        if not results:
+            return None, []
 
     # --- Single result → auto-select ---
     if len(results) == 1:
-        logger.info("resolver: single result for '%s' → %s", keyword, results[0].full_name)
+        logger.info(
+            "resolver: single result (%s) for '%s' → %s",
+            source, keyword, results[0].full_name,
+        )
         return results[0].full_name, results
 
     # --- Canonical match (keyword == owner == repo) → auto-select ---
     canonical = _has_canonical_match(keyword, results)
     if canonical:
         logger.info(
-            "resolver: canonical match for '%s' → %s (%d★)",
-            keyword, canonical.full_name, canonical.stars,
+            "resolver: canonical match (%s) for '%s' → %s (%d★)",
+            source, keyword, canonical.full_name, canonical.stars,
         )
         return canonical.full_name, results
 

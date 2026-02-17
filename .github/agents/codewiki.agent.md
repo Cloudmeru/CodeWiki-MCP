@@ -53,6 +53,8 @@ Analyze the user's request and delegate to the right subagent:
 2. **Delegate** immediately to the chosen subagent with a clear, focused prompt:
    - The repo URL (owner/repo format), or a bare keyword like "vue" — tools
      automatically resolve keywords to the correct owner/repo via CodeWiki search.
+     If CodeWiki returns no results (typos, misspellings, niche repos), a
+     **GitHub API fallback** automatically searches GitHub and recovers.
      When multiple repos match, VS Code shows an interactive selection prompt
      (MCP Elicitation) so the user can pick the right one (e.g., "vue" →
      vuejs/core for Vue 3, not vuejs/vue for Vue 2).
@@ -61,7 +63,8 @@ Analyze the user's request and delegate to the right subagent:
    - Do NOT include pre-fetched data — subagents are stateless and have
      their own CodeWiki tools to discover and read documentation.
    - Subagents handle NOT_INDEXED errors themselves — they will call
-     `codewiki_request_indexing` and report back if a repo is unindexed.
+     `codewiki_request_indexing` which asks the user for confirmation via
+     MCP Elicitation before submitting the request.
 3. **Present the full result**: When the subagent returns, show the user
    the **complete response** — tables, citations, code snippets, everything.
    Do NOT summarize, truncate, or replace the result with a brief status

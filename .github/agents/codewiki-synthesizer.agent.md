@@ -93,10 +93,16 @@ Deliver a buildable specification:
 ## Handling Unindexed Repositories
 If any tool returns a `NOT_INDEXED` error:
 1. Inform the user which repository is not yet indexed.
-2. Call codewiki_request_indexing for that repo.
+2. Call codewiki_request_indexing for that repo — the tool will ask the
+   user for confirmation via MCP Elicitation before submitting.
 3. Continue synthesizing with whatever repos are available.
 4. Note which parts of the blueprint are incomplete due to
    missing data and suggest revisiting after indexing.
+
+## Keyword Resolution & Typo Recovery
+- Bare keywords are auto-resolved via CodeWiki search.
+- Typos and misspellings are automatically recovered via GitHub API fallback.
+- When multiple repos match, the user gets an interactive selection prompt.
 
 ## Output Format
 Structure your response as:

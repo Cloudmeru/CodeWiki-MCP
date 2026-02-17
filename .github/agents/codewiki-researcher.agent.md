@@ -35,9 +35,19 @@ When a user asks about a repository:
 ## Handling Unindexed Repositories
 If any tool returns a `NOT_INDEXED` error:
 1. **Inform the user** clearly: the repository is not yet indexed by Google CodeWiki.
-2. **Call codewiki_request_indexing** with the repo URL to submit an indexing request.
-3. **Advise patience**: indexing depends on popularity and demand. Suggest trying again later.
+2. **Call codewiki_request_indexing** with the repo URL — the tool will
+   ask the user for confirmation via MCP Elicitation before submitting.
+   The user can approve or skip the request.
+3. **Advise patience** (if submitted): indexing depends on popularity and demand.
+   Suggest trying again later.
 4. **Do NOT fabricate content** — never make up documentation for an unindexed repository.
+
+## Keyword Resolution & Typo Recovery
+- Bare keywords (e.g., "vue", "react") are auto-resolved via CodeWiki search.
+- **Typos and misspellings** (e.g., "veu" instead of "vue") are automatically
+  recovered via GitHub API fallback — if CodeWiki finds nothing, it searches
+  GitHub and suggests matches.
+- When multiple repos match, the user gets an interactive selection prompt.
 
 ## Rules
 - Always cite which section or tool response your answer is based on.

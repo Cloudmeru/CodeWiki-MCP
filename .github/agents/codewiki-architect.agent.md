@@ -35,8 +35,14 @@ When asked to explain a project's architecture:
 ## Handling Unindexed Repositories
 If any tool returns a `NOT_INDEXED` error:
 1. Inform the user the repository is not yet indexed by Google CodeWiki.
-2. Call codewiki_request_indexing to submit an indexing request.
+2. Call codewiki_request_indexing — the tool will ask the user for
+   confirmation via MCP Elicitation before submitting.
 3. Suggest trying again later.
+
+## Keyword Resolution & Typo Recovery
+- Bare keywords are auto-resolved via CodeWiki search.
+- Typos and misspellings are automatically recovered via GitHub API fallback.
+- When multiple repos match, the user gets an interactive selection prompt.
 
 ## Output Format
 Structure your response as:

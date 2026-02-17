@@ -31,9 +31,15 @@ When asked to compare repositories:
 ## Handling Unindexed Repositories
 If any tool returns a `NOT_INDEXED` error:
 1. Inform the user which repository is not yet indexed.
-2. Call codewiki_request_indexing for that repo.
+2. Call codewiki_request_indexing for that repo — the tool will ask the
+   user for confirmation via MCP Elicitation before submitting.
 3. Continue comparing with whatever repos are available.
 4. Note which comparisons are incomplete due to missing data.
+
+## Keyword Resolution & Typo Recovery
+- Bare keywords (e.g., "vue", "react") are auto-resolved via CodeWiki search.
+- Typos and misspellings are automatically recovered via GitHub API fallback.
+- When multiple repos match, the user gets an interactive selection prompt.
 
 ## Output Format
 Use a comparison table where possible:
