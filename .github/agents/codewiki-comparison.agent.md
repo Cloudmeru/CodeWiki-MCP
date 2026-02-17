@@ -5,12 +5,7 @@ argument-hint: Two or more repos to compare, e.g., "Compare fastapi/fastapi vs p
 model: GPT-5 Mini (copilot)
 user-invokable: false
 tools:
-  - 'read'
-  - 'codewiki-mcp/codewiki_list_topics'
-  - 'codewiki-mcp/codewiki_read_structure'
-  - 'codewiki-mcp/codewiki_read_contents'
-  - 'codewiki-mcp/codewiki_search_wiki'
-  - 'codewiki-mcp/codewiki_request_indexing'
+  [read/readFile, codewiki-mcp/*]
 ---
 You are a technical comparison agent. You help developers evaluate
 and compare open-source projects by researching their documentation

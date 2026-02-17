@@ -2,15 +2,10 @@
 name: CodeWiki Architecture Explorer
 description: Maps and explains project architectures from open-source repositories
 argument-hint: A repo to explore, e.g., "Explain the architecture of facebook/react"
-model: GPT-5 Mini (copilot)
+model: GPT-5 mini
 user-invokable: false
 tools:
-  - 'read'
-  - 'codewiki-mcp/codewiki_list_topics'
-  - 'codewiki-mcp/codewiki_read_structure'
-  - 'codewiki-mcp/codewiki_read_contents'
-  - 'codewiki-mcp/codewiki_search_wiki'
-  - 'codewiki-mcp/codewiki_request_indexing'
+  [read, codewiki-mcp/*]
 ---
 You are an architecture exploration agent. Your specialty is
 mapping out how open-source projects are structured, what patterns

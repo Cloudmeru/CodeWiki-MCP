@@ -101,13 +101,14 @@
     <div class="tool-card" style="padding: 1.5rem;">
       <pre class="mermaid">
 flowchart LR
-    User(["👤 @codewiki"]) --> Master["🎯 CodeWiki Master\n(pure router)"]
+    User(["👤 @codewiki"]) --> Master["🎯 CodeWiki Master\n(orchestrator + tool broker)"]
 
     Master -->|"general questions"| Researcher["🔍 Researcher\n(general exploration)"]
     Master -->|"code-level questions"| Reviewer["📝 Code Review\n(module/function analysis)"]
     Master -->|"design questions"| Architect["🏗️ Architecture Explorer\n(system design)"]
     Master -->|"multi-repo questions"| Comparison["⚖️ Comparison\n(side-by-side analysis)"]
 
+    MCP["🔌 codewiki-mcp/*\n(5 MCP tools)"] -.->|"exposed via master"| Master
     Skill["📚 SKILL.md\n(domain knowledge)"] -.->|"read on-demand"| Researcher
     Skill -.->|"read on-demand"| Reviewer
     Skill -.->|"read on-demand"| Architect
@@ -118,14 +119,20 @@ flowchart LR
     style Reviewer fill:#1e293b,stroke:#6c63ff,color:#e2e8f0
     style Architect fill:#1e293b,stroke:#6c63ff,color:#e2e8f0
     style Comparison fill:#1e293b,stroke:#6c63ff,color:#e2e8f0
+    style MCP fill:#1e293b,stroke:#f59e0b,color:#e2e8f0
     style Skill fill:#1e293b,stroke:#10b981,color:#e2e8f0
     style User fill:#0f172a,stroke:#6c63ff,color:#e2e8f0
       </pre>
       <p style="margin-top: 1rem; font-size: 0.85rem; color: #94a3b8;">
-        <strong>Master tool:</strong> <code>agent</code> only (pure router — zero MCP tools)<br>
-        <strong>Subagent tools:</strong> <code>read</code> + all 5 <code>codewiki_*</code> tools (including NOT_INDEXED handling)<br>
+        <strong>Master tools:</strong> <code>read</code>, <code>agent</code>, <code>codewiki-mcp/*</code> (orchestrator + tool broker)<br>
+        <strong>Subagent tools:</strong> <code>read</code> + <code>codewiki-mcp/*</code> (all 5 tools, including NOT_INDEXED handling)<br>
         <strong>Skills:</strong> <code>.github/skills/codewiki-usage/SKILL.md</code> (loaded on-demand via <code>read</code>)
       </p>
+    </div>
+
+    <div class="tool-card" style="margin-top: 1rem; border-left: 3px solid #f59e0b; padding: 1rem 1.5rem;">
+      <p style="margin: 0; color: #fbbf24;"><strong>⚠️ Model Warning:</strong></p>
+      <p style="margin: 0.5rem 0 0 0;">Do <strong>not</strong> use free or low-tier models (e.g., GPT-5 mini) for the master agent. These models produce <strong>inconsistent routing and truncated results</strong> — they frequently summarize subagent output instead of presenting it in full, misroute requests, or skip delegation entirely. Use a <strong>1× credit model</strong> like <code>GPT-5.3-Codex</code> for reliable orchestration. Subagents can still use cheaper models since their task is more focused.</p>
     </div>
 
     <h3>Key Design Decisions</h3>
@@ -133,8 +140,12 @@ flowchart LR
       <thead><tr><th>Decision</th><th>Rationale</th></tr></thead>
       <tbody>
         <tr>
-          <td><strong>Master is a pure router (zero MCP tools)</strong></td>
-          <td>The master only has the <code>agent</code> tool for spawning subagents. No <code>codewiki_*</code> tools at all — this forces delegation and saves tokens by eliminating the redundant availability check.</td>
+          <td><strong>Master is an orchestrator + tool broker</strong></td>
+          <td>The master declares <code>codewiki-mcp/*</code> in its tools list so that MCP tools are <strong>exposed to subagents</strong> when spawned. The master itself still acts as a router — it delegates via the <code>agent</code> tool and does not call CodeWiki tools directly. Without <code>codewiki-mcp/*</code> on the master, subagents would have no access to the MCP server.</td>
+        </tr>
+        <tr>
+          <td><strong>Master uses a capable model (1× credit)</strong></td>
+          <td>Free/low-tier models (GPT-5 mini, GPT-4.1 nano) produce inconsistent routing — truncated results, skipped delegation, brief summaries instead of full output. A 1× credit model like <code>GPT-5.3-Codex</code> ensures reliable orchestration.</td>
         </tr>
         <tr>
           <td><strong>Subagents handle everything</strong></td>
@@ -153,22 +164,23 @@ flowchart LR
 
     <!-- Master Agent -->
     <h3 id="master-agent">1. Master Orchestrator — <code>codewiki.agent.md</code></h3>
-    <p>The entry point. Users invoke <code>@codewiki</code> in VS Code Chat, and this agent routes to the right specialist.</p>
+    <p>The entry point. Users invoke <code>@codewiki</code> in VS Code Chat, and this agent routes to the right specialist. It declares <code>codewiki-mcp/*</code> in its tools list to expose MCP tools to subagents.</p>
     <div class="tool-card">
       <h3>YAML Frontmatter</h3>
       <pre><code>---
 name: CodeWiki
 description: Master agent that routes your request to the right CodeWiki specialist
 argument-hint: Any question about open-source repos, e.g., "Explain React's architecture"
-model: GPT-5 Mini (copilot)
+model: GPT-5.3-Codex
 tools:
-  - 'agent'
+  [read, agent, codewiki-mcp/*]
 agents:
-  - 'CodeWiki Researcher'
-  - 'CodeWiki Code Review'
-  - 'CodeWiki Architecture Explorer'
-  - 'CodeWiki Comparison'
+  [CodeWiki Researcher, CodeWiki Code Review, CodeWiki Architecture Explorer, CodeWiki Comparison]
 ---</code></pre>
+      <p style="margin-top: 0.75rem; font-size: 0.85rem; color: #94a3b8;">
+        <strong>Why <code>codewiki-mcp/*</code> on the master?</strong> The master must declare MCP tools so they are available when spawning subagents. Without this, subagents cannot access the CodeWiki MCP server.<br>
+        <strong>Why <code>GPT-5.3-Codex</code>?</strong> Free/low-tier models produce inconsistent routing and result truncation. A 1× credit model ensures reliable delegation and full result presentation.
+      </p>
     </div>
 
     <div class="tool-card">
@@ -207,7 +219,7 @@ Example delegation prompt:
 
     <!-- Specialist Subagents -->
     <h3 id="subagents">2. Specialist Subagents</h3>
-    <p>All 4 specialists share the same tool access (<code>read</code> + all 5 <code>codewiki_*</code> tools) but differ in their persona, workflow, and output format. All have <code>user-invokable: false</code>.</p>
+    <p>All 4 specialists share the same tool access (<code>read</code> + <code>codewiki-mcp/*</code>) but differ in their persona, workflow, and output format. All have <code>user-invokable: false</code>.</p>
 
     <div class="tool-card">
       <h3>2a. CodeWiki Researcher</h3>
@@ -215,15 +227,10 @@ Example delegation prompt:
       <pre><code>---
 name: CodeWiki Researcher
 description: Explores open-source codebases using Google CodeWiki
-model: GPT-5 Mini (copilot)
-user-invocable: false
+model: GPT-5 mini
+user-invokable: false
 tools:
-  - 'read'
-  - 'codewiki-mcp/codewiki_list_topics'
-  - 'codewiki-mcp/codewiki_read_structure'
-  - 'codewiki-mcp/codewiki_read_contents'
-  - 'codewiki-mcp/codewiki_search_wiki'
-  - 'codewiki-mcp/codewiki_request_indexing'
+  [read, codewiki-mcp/*]
 ---
 
 Workflow:
@@ -240,9 +247,10 @@ Workflow:
       <pre><code>---
 name: CodeWiki Code Review
 description: Helps developers understand unfamiliar codebases during code review
-model: GPT-5 Mini (copilot)
-user-invocable: false
-tools: [read, all 5 codewiki-mcp/* tools]
+model: GPT-5 mini
+user-invokable: false
+tools:
+  [read, codewiki-mcp/*]
 ---
 
 Focus: Code structure, patterns, implementation details.
@@ -256,9 +264,10 @@ Output: References specific modules, classes, or functions.</code></pre>
       <pre><code>---
 name: CodeWiki Architecture Explorer
 description: Maps and explains project architectures
-model: GPT-5 Mini (copilot)
-user-invocable: false
-tools: [read, all 5 codewiki-mcp/* tools]
+model: GPT-5 mini
+user-invokable: false
+tools:
+  [read, codewiki-mcp/*]
 ---
 
 Output Format:
@@ -275,9 +284,10 @@ Output Format:
       <pre><code>---
 name: CodeWiki Comparison
 description: Compares multiple open-source repositories side-by-side
-model: GPT-5 Mini (copilot)
-user-invocable: false
-tools: [read, all 5 codewiki-mcp/* tools]
+model: GPT-5 mini
+user-invokable: false
+tools:
+  [read, codewiki-mcp/*]
 ---
 
 Output Format: Structured comparison table
@@ -326,7 +336,7 @@ description: Best practices for using Google CodeWiki MCP tools
     <h3>How Skills Work</h3>
     <ul>
       <li><strong>On-demand loading:</strong> Agents use the <code>read</code> tool to load the skill file only when they need domain knowledge. This avoids bloating every prompt with instructions.</li>
-      <li><strong>Requires <code>read</code> tool:</strong> Every agent that uses skills must have <code>'read'</code> in its tools list. This is why all subagents now include <code>read</code> as their first tool entry.</li>
+      <li><strong>Requires <code>read</code> tool:</strong> Every agent that uses skills must have <code>'read'</code> in its tools list. This is why all agents (master and subagents) include <code>read</code> as a tool entry.</li>
       <li><strong>Workspace-wide:</strong> Skills are separate from agent definitions and available to all agents in the workspace.</li>
       <li><strong>VS Code setting:</strong> Enable skill loading with <code>"chat.useAgentSkills": true</code> in your VS Code settings. When enabled, the editor exposes skill metadata to agents so they know which skills are available.</li>
     </ul>
@@ -353,9 +363,13 @@ tools:
   - 'codewiki-mcp/codewiki_list_topics'</code></pre>
     </div>
 
-    <h3>2. Master Should Be a Pure Router — Zero MCP Tools</h3>
+    <h3>2. Master Must Expose MCP Tools for Subagents</h3>
     <div class="tool-card">
-      <p>Give the master <strong>only</strong> the <code>agent</code> tool. If you add any <code>codewiki_*</code> tools, it will try to answer questions directly or do redundant availability checks — wasting tokens. Each subagent already has all 5 MCP tools and handles NOT_INDEXED errors independently.</p>
+      <p>The master agent must declare <code>codewiki-mcp/*</code> in its tools list — not because the master calls those tools directly, but because <strong>subagents need the master to expose MCP tools</strong> so they can access them when spawned. Without <code>codewiki-mcp/*</code> on the master, subagents would have no connection to the CodeWiki MCP server. The master still acts as a router in its system prompt — it delegates via the <code>agent</code> tool and never calls CodeWiki tools directly.</p>
+      <pre><code># Master tools — all three are required:
+tools:
+  [read, agent, codewiki-mcp/*]
+#  ↑ read skills  ↑ spawn subagents  ↑ expose MCP to subagents</code></pre>
     </div>
 
     <h3>3. Subagents Are Stateless — Let Them Do All the Work</h3>
@@ -378,18 +392,18 @@ tools:
       </ul>
     </div>
 
-    <h3>6. The <code>agent</code> Tool Name</h3>
+    <h3>6. Tool Declaration Format</h3>
     <div class="tool-card">
-      <p>When listing tools in the YAML frontmatter, the tool for spawning subagents is simply <code>agent</code> — not <code>agent/runSubagent</code> or <code>runSubagent</code>. The <code>agents:</code> property lists which subagents this orchestrator can spawn.</p>
-      <pre><code># Correct ✓
+      <p>When listing tools in the YAML frontmatter, use shorthand names: <code>read</code> for reading files, <code>agent</code> for spawning subagents, and <code>codewiki-mcp/*</code> as a wildcard for all MCP tools. The <code>agents:</code> property lists which subagents the orchestrator can spawn.</p>
+      <pre><code># Master agent tools ✓
 tools:
-  - 'agent'
+  [read, agent, codewiki-mcp/*]
 agents:
-  - 'CodeWiki Researcher'
+  [CodeWiki Researcher, CodeWiki Code Review, ...]
 
-# Wrong ✗
+# Subagent tools ✓
 tools:
-  - 'agent/runSubagent'</code></pre>
+  [read, codewiki-mcp/*]</code></pre>
     </div>
     <h3>7. Skills Provide Reusable Domain Knowledge</h3>
     <div class="tool-card">
@@ -398,6 +412,17 @@ tools:
     <h3>8. Always Present the Full Subagent Result</h3>
     <div class="tool-card">
       <p>A common pitfall: the master receives a detailed response from a subagent (comparison tables, cited sections, code examples) but only shows the user a brief summary like <em>"Done — comparison delivered. Want me to do X?"</em>. The subagent's output <strong>IS</strong> the answer — always present the complete content first, then optionally suggest follow-ups after. The master's synthesis step must never gate or truncate results behind a follow-up question.</p>
+    </div>
+    <h3>9. Don't Use Free/Low-Tier Models for the Master Agent</h3>
+    <div class="tool-card">
+      <p>Free and low-tier models (GPT-5 mini, GPT-4.1, GPT-4.1 nano) produce <strong>inconsistent results</strong> when used as the master orchestrator. Common failure modes include:</p>
+      <ul>
+        <li><strong>Truncated output:</strong> The master summarizes the subagent's detailed response into a single sentence instead of presenting it in full.</li>
+        <li><strong>Skipped delegation:</strong> The master tries to answer from its own knowledge instead of spawning a subagent.</li>
+        <li><strong>Misrouting:</strong> Requests get sent to the wrong specialist (e.g., a comparison routed to the Researcher).</li>
+        <li><strong>Lost context:</strong> Multi-step requests (architecture + comparison) only complete the first step.</li>
+      </ul>
+      <p><strong>Recommendation:</strong> Use a <strong>1× credit model</strong> like <code>GPT-5.3-Codex</code> for the master agent. Subagents can still use cheaper models (GPT-5 mini) since their tasks are more focused and less prone to these failure modes.</p>
     </div>
     <!-- ─── Generic Agent Integration ─── -->
     <h2 id="generic-integration">Generic Agent Integration</h2>
@@ -606,31 +631,38 @@ if response["status"] == "error":
     </ol>
 
     <h2>Model Selection &amp; Credit Optimization</h2>
-    <p>When using GitHub Copilot, your model choice significantly affects credit consumption.</p>
+    <p>When using GitHub Copilot, your model choice significantly affects credit consumption <strong>and output quality</strong>.</p>
 
     <h3>GitHub Copilot Model Multipliers</h3>
     <table>
       <thead><tr><th>Model</th><th>Multiplier</th><th>Credits per Request</th><th>Recommendation</th></tr></thead>
       <tbody>
-        <tr><td>GPT-4.1 / GPT-4.1 mini</td><td>0×</td><td>Free (on paid plans)</td><td>Best for routine CodeWiki lookups</td></tr>
-        <tr><td>GPT-4.1 nano</td><td>0×</td><td>Free (on paid plans)</td><td>Good for simple structure queries</td></tr>
+        <tr><td>GPT-4.1 / GPT-4.1 mini</td><td>0×</td><td>Free (on paid plans)</td><td>Subagents only — not for master</td></tr>
+        <tr><td>GPT-4.1 nano</td><td>0×</td><td>Free (on paid plans)</td><td>Subagents only — too weak for routing</td></tr>
+        <tr><td>GPT-5 mini</td><td>0×</td><td>Free (on paid plans)</td><td>Subagents only — inconsistent as master</td></tr>
         <tr><td>Gemini 2.5 Flash</td><td>0.33×</td><td>~0.33</td><td>Good balance of capability/cost</td></tr>
-        <tr><td>Claude Sonnet 4</td><td>1×</td><td>1</td><td>Good for complex multi-tool workflows</td></tr>
+        <tr><td><strong>GPT-5.3-Codex</strong></td><td><strong>1×</strong></td><td><strong>1</strong></td><td><strong>Recommended for master agent</strong></td></tr>
+        <tr><td>Claude Sonnet 4</td><td>1×</td><td>1</td><td>Good alternative for master agent</td></tr>
         <tr><td>Claude Opus 4.5 / 4.6</td><td>3×</td><td>3</td><td>Use sparingly for complex analysis</td></tr>
         <tr><td>Claude Opus 4.1</td><td>10×</td><td>10</td><td>Reserve for critical tasks only</td></tr>
       </tbody>
     </table>
 
+    <div class="tool-card" style="margin-top: 1rem; border-left: 3px solid #f59e0b; padding: 1rem 1.5rem;">
+      <p style="margin: 0; color: #fbbf24;"><strong>⚠️ Master Agent Model Requirement</strong></p>
+      <p style="margin: 0.5rem 0 0 0;">The master orchestrator should use a <strong>1× credit model minimum</strong> (e.g., <code>GPT-5.3-Codex</code> or <code>Claude Sonnet 4</code>). Free/low-tier models produce inconsistent routing, truncated subagent output, and skipped delegation. Subagents can still use free models — their focused tasks are less prone to these failure modes.</p>
+    </div>
+
     <h3>Credit Budget Tips</h3>
     <table>
       <thead><tr><th>Tip</th><th>Savings</th></tr></thead>
       <tbody>
-        <tr><td>Use GPT-4.1 for routine CodeWiki lookups</td><td>0 credits per request (free on paid plans)</td></tr>
+        <tr><td>Use GPT-5.3-Codex for the master, GPT-5 mini for subagents</td><td>1 credit for routing + 0 credits for data gathering</td></tr>
         <tr><td>Use <code>codewiki_read_structure</code> first to avoid unnecessary calls</td><td>~5,000-10,000 tokens saved per skipped tool call</td></tr>
         <tr><td>Use <code>section_title</code> parameter instead of reading full pages</td><td>70-90% fewer tokens per call</td></tr>
         <tr><td>Use pagination with small <code>limit</code> values</td><td>Read only what you need, not everything</td></tr>
         <tr><td>Leverage caching — repeated calls within 5 min are free</td><td>Eliminates redundant Playwright renders</td></tr>
-        <tr><td>Switch to Opus/Sonnet only for synthesis and reasoning steps</td><td>Use free models for data gathering</td></tr>
+        <tr><td>Don't use Opus-tier models for routine lookups</td><td>Save 3-10× credits per request</td></tr>
       </tbody>
     </table>
 

@@ -19,6 +19,48 @@
 
 ---
 
+## Agent Configuration Reference
+
+Current YAML frontmatter for each agent (must match `.github/agents/` files):
+
+### Master Orchestrator (`codewiki.agent.md`)
+
+```yaml
+name: CodeWiki
+description: Master agent that routes your request to the right CodeWiki specialist
+model: GPT-5.3-Codex
+tools:
+  [read, agent, codewiki-mcp/*]
+agents:
+  [CodeWiki Researcher, CodeWiki Code Review, CodeWiki Architecture Explorer, CodeWiki Comparison]
+```
+
+> **⚠️ Model:** The master must use a **1× credit model** like `GPT-5.3-Codex`.
+> Free/low-tier models (GPT-5 mini) produce inconsistent routing, truncated
+> results, and skipped delegation.
+>
+> **Why `codewiki-mcp/*` on the master?** The master must declare MCP tools
+> so they are exposed to subagents when spawned. The master itself still acts
+> as a router — it delegates via `agent` and does not call CodeWiki tools directly.
+
+### Subagents (all 4 share the same tool/model config)
+
+```yaml
+model: GPT-5 mini
+user-invokable: false
+tools:
+  [read, codewiki-mcp/*]
+```
+
+| Agent File | Name | Specialty |
+|-----------|------|-----------|
+| `codewiki-researcher.agent.md` | CodeWiki Researcher | General exploration |
+| `codewiki-reviewer.agent.md` | CodeWiki Code Review | Module/function analysis |
+| `codewiki-architect.agent.md` | CodeWiki Architecture Explorer | System design |
+| `codewiki-comparison.agent.md` | CodeWiki Comparison | Multi-repo comparison |
+
+---
+
 ## 1. CodeWiki Researcher (General Exploration)
 
 **Routing trigger**: General "what is", "explain", "tell me about" questions.
