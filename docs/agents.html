@@ -95,7 +95,7 @@
 
     <!-- ─── VS Code Custom Agents ─── -->
     <h2 id="vscode-agents">VS Code Custom Agents</h2>
-    <p>This project ships with <strong>5 production-tested agent definitions</strong> in <code>.github/agents/</code> that work with GitHub Copilot's custom agent system. The architecture uses a <strong>master orchestrator</strong> that routes requests to 4 specialist subagents.</p>
+    <p>This project ships with <strong>6 production-tested agent definitions</strong> in <code>.github/agents/</code> that work with GitHub Copilot's custom agent system. The architecture uses a <strong>master orchestrator</strong> that routes requests to 5 specialist subagents.</p>
 
     <h3>Architecture Diagram</h3>
     <div class="tool-card" style="padding: 1.5rem;">
@@ -107,18 +107,21 @@ flowchart LR
     Master -->|"code-level questions"| Reviewer["📝 Code Review\n(module/function analysis)"]
     Master -->|"design questions"| Architect["🏗️ Architecture Explorer\n(system design)"]
     Master -->|"multi-repo questions"| Comparison["⚖️ Comparison\n(side-by-side analysis)"]
+    Master -->|"build from multiple repos"| Synthesizer["🧬 Synthesizer\n(combine & integrate)"]
 
     MCP["🔌 codewiki-mcp/*\n(5 MCP tools)"] -.->|"exposed via master"| Master
     Skill["📚 SKILL.md\n(domain knowledge)"] -.->|"read on-demand"| Researcher
     Skill -.->|"read on-demand"| Reviewer
     Skill -.->|"read on-demand"| Architect
     Skill -.->|"read on-demand"| Comparison
+    Skill -.->|"read on-demand"| Synthesizer
 
     style Master fill:#6c63ff,stroke:#5a52d5,color:#fff
     style Researcher fill:#1e293b,stroke:#6c63ff,color:#e2e8f0
     style Reviewer fill:#1e293b,stroke:#6c63ff,color:#e2e8f0
     style Architect fill:#1e293b,stroke:#6c63ff,color:#e2e8f0
     style Comparison fill:#1e293b,stroke:#6c63ff,color:#e2e8f0
+    style Synthesizer fill:#1e293b,stroke:#6c63ff,color:#e2e8f0
     style MCP fill:#1e293b,stroke:#f59e0b,color:#e2e8f0
     style Skill fill:#1e293b,stroke:#10b981,color:#e2e8f0
     style User fill:#0f172a,stroke:#6c63ff,color:#e2e8f0
@@ -126,6 +129,7 @@ flowchart LR
       <p style="margin-top: 1rem; font-size: 0.85rem; color: #94a3b8;">
         <strong>Master tools:</strong> <code>read</code>, <code>agent</code>, <code>codewiki-mcp/*</code> (orchestrator + tool broker)<br>
         <strong>Subagent tools:</strong> <code>read</code> + <code>codewiki-mcp/*</code> (all 5 tools, including NOT_INDEXED handling)<br>
+        <strong>Synthesizer model:</strong> <code>GPT-5.3-Codex</code> (needs strong reasoning for multi-repo integration design)<br>
         <strong>Skills:</strong> <code>.github/skills/codewiki-usage/SKILL.md</code> (loaded on-demand via <code>read</code>)
       </p>
     </div>
@@ -159,6 +163,10 @@ flowchart LR
           <td><strong>Server name consistency</strong></td>
           <td>The server name in <code>.vscode/mcp.json</code> (<code>codewiki-mcp</code>) must exactly match the tool prefix in agent files (<code>codewiki-mcp/codewiki_*</code>).</td>
         </tr>
+        <tr>
+          <td><strong>Synthesizer uses a capable model</strong></td>
+          <td>The Synthesizer is the most cognitively demanding subagent — it holds context from 3+ repos simultaneously while doing creative integration design. It uses <code>GPT-5.3-Codex</code> (1× credit) instead of <code>GPT-5 mini</code> to ensure quality architecture blueprints.</td>
+        </tr>
       </tbody>
     </table>
 
@@ -175,7 +183,7 @@ model: GPT-5.3-Codex
 tools:
   [read, agent, codewiki-mcp/*]
 agents:
-  [CodeWiki Researcher, CodeWiki Code Review, CodeWiki Architecture Explorer, CodeWiki Comparison]
+  [CodeWiki Researcher, CodeWiki Code Review, CodeWiki Architecture Explorer, CodeWiki Comparison, CodeWiki Synthesizer]
 ---</code></pre>
       <p style="margin-top: 0.75rem; font-size: 0.85rem; color: #94a3b8;">
         <strong>Why <code>codewiki-mcp/*</code> on the master?</strong> The master must declare MCP tools so they are available when spawning subagents. Without this, subagents cannot access the CodeWiki MCP server.<br>
@@ -192,6 +200,7 @@ agents:
           <tr><td>Code analysis</td><td>CodeWiki Code Review</td><td>"review", "analyse", "module", "function", "code"</td></tr>
           <tr><td>System design</td><td>CodeWiki Architecture Explorer</td><td>"architecture", "design", "structure", "hierarchy"</td></tr>
           <tr><td>Multi-repo comparison</td><td>CodeWiki Comparison</td><td>"compare", "vs", "difference", "or"</td></tr>
+          <tr><td>Multi-repo synthesis</td><td>CodeWiki Synthesizer</td><td>"combine", "merge", "build using", "take X from A and Y from B"</td></tr>
           <tr><td>Unindexed repo</td><td><em>Subagent handles it</em></td><td>Subagent calls <code>codewiki_request_indexing</code> and reports back</td></tr>
         </tbody>
       </table>
@@ -219,7 +228,7 @@ Example delegation prompt:
 
     <!-- Specialist Subagents -->
     <h3 id="subagents">2. Specialist Subagents</h3>
-    <p>All 4 specialists share the same tool access (<code>read</code> + <code>codewiki-mcp/*</code>) but differ in their persona, workflow, and output format. All have <code>user-invokable: false</code>.</p>
+    <p>All 5 specialists share the same tool access (<code>read</code> + <code>codewiki-mcp/*</code>) but differ in their persona, workflow, and output format. All have <code>user-invokable: false</code>. The Synthesizer uses <code>GPT-5.3-Codex</code> for stronger reasoning; the other 4 use <code>GPT-5 mini</code>.</p>
 
     <div class="tool-card">
       <h3>2a. CodeWiki Researcher</h3>
@@ -298,6 +307,33 @@ Output Format: Structured comparison table
 
 Handles NOT_INDEXED gracefully — continues with available repos,
 notes which comparisons are incomplete.</code></pre>
+    </div>
+
+    <div class="tool-card">
+      <h3>2e. CodeWiki Synthesizer</h3>
+      <p><strong>File:</strong> <code>codewiki-synthesizer.agent.md</code> — Combines features, patterns, and architectures from multiple repos into a new solution blueprint.</p>
+      <pre><code>---
+name: CodeWiki Synthesizer
+description: Combines features, patterns, and architectures from multiple repos into a new solution blueprint
+model: GPT-5.3-Codex
+user-invokable: false
+tools:
+  [read, codewiki-mcp/*]
+---
+
+6-Phase Workflow:
+1. DECOMPOSE — Parse repos and desired parts from each
+2. RESEARCH  — codewiki tools to gather relevant sections per repo
+3. EXTRACT   — Document interfaces, dependencies, patterns per part
+4. RESOLVE   — Identify and fix cross-repo incompatibilities
+5. DESIGN    — Integration architecture (how parts connect)
+6. BLUEPRINT — Directory structure, code snippets, implementation guide
+
+Output: Parts table, compatibility analysis, Mermaid architecture
+diagram, directory structure, integration code, step-by-step guide.
+
+Model: GPT-5.3-Codex — this is the most cognitively demanding
+subagent (multi-repo context + creative architecture design).</code></pre>
     </div>
 
     <!-- Skills -->
@@ -657,7 +693,7 @@ if response["status"] == "error":
     <table>
       <thead><tr><th>Tip</th><th>Savings</th></tr></thead>
       <tbody>
-        <tr><td>Use GPT-5.3-Codex for the master, GPT-5 mini for subagents</td><td>1 credit for routing + 0 credits for data gathering</td></tr>
+        <tr><td>Use GPT-5.3-Codex for master + Synthesizer, GPT-5 mini for other subagents</td><td>1 credit for routing, 1 for synthesis, 0 for other data gathering</td></tr>
         <tr><td>Use <code>codewiki_read_structure</code> first to avoid unnecessary calls</td><td>~5,000-10,000 tokens saved per skipped tool call</td></tr>
         <tr><td>Use <code>section_title</code> parameter instead of reading full pages</td><td>70-90% fewer tokens per call</td></tr>
         <tr><td>Use pagination with small <code>limit</code> values</td><td>Read only what you need, not everything</td></tr>

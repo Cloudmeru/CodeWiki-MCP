@@ -32,7 +32,7 @@ model: GPT-5.3-Codex
 tools:
   [read, agent, codewiki-mcp/*]
 agents:
-  [CodeWiki Researcher, CodeWiki Code Review, CodeWiki Architecture Explorer, CodeWiki Comparison]
+  [CodeWiki Researcher, CodeWiki Code Review, CodeWiki Architecture Explorer, CodeWiki Comparison, CodeWiki Synthesizer]
 ```
 
 > **⚠️ Model:** The master must use a **1× credit model** like `GPT-5.3-Codex`.
@@ -43,10 +43,17 @@ agents:
 > so they are exposed to subagents when spawned. The master itself still acts
 > as a router — it delegates via `agent` and does not call CodeWiki tools directly.
 
-### Subagents (all 4 share the same tool/model config)
+### Subagents (4 use GPT-5 mini, 1 uses GPT-5.3-Codex)
 
 ```yaml
+# Researcher, Code Review, Architecture Explorer, Comparison:
 model: GPT-5 mini
+user-invokable: false
+tools:
+  [read, codewiki-mcp/*]
+
+# Synthesizer (needs stronger reasoning for multi-repo integration):
+model: GPT-5.3-Codex
 user-invokable: false
 tools:
   [read, codewiki-mcp/*]
@@ -58,6 +65,7 @@ tools:
 | `codewiki-reviewer.agent.md` | CodeWiki Code Review | Module/function analysis |
 | `codewiki-architect.agent.md` | CodeWiki Architecture Explorer | System design |
 | `codewiki-comparison.agent.md` | CodeWiki Comparison | Multi-repo comparison |
+| `codewiki-synthesizer.agent.md` | CodeWiki Synthesizer | Combine parts from multiple repos |
 
 ---
 
@@ -242,6 +250,49 @@ tools:
 
 ---
 
+## 6. CodeWiki Synthesizer (Multi-Repo Solution Building)
+
+**Routing trigger**: User wants to BUILD something new by combining parts from multiple repos. Distinct from Comparison which evaluates/contrasts.
+
+### Prompts
+
+```
+@codewiki I want to build an API server that uses the routing system from pallets/flask and the async handling from fastapi/fastapi. Help me design it.
+```
+
+```
+@codewiki Take the plugin architecture from vitejs/vite and the component model from vuejs/core — design a new framework that combines both.
+```
+
+```
+@codewiki Combine the authentication approach from supabase/supabase with the event pipeline from apache/kafka into a real-time auth notification system.
+```
+
+### Expected Behaviour
+
+| Step | What should happen |
+|------|-----------------------|
+| 1 | Master detects synthesis intent ("build", "combine", "take X from A and Y from B") |
+| 2 | Master spawns **CodeWiki Synthesizer** via the `agent` tool |
+| 3 | Synthesizer researches each repo using CodeWiki tools (read_structure, read_contents, search_wiki) |
+| 4 | Synthesizer extracts the specific parts the user requested from each repo |
+| 5 | Synthesizer identifies cross-repo conflicts and proposes adapters |
+| 6 | Synthesizer delivers a blueprint: architecture diagram, directory structure, integration code, implementation guide |
+
+### Validation
+
+- [ ] Master delegates to **CodeWiki Synthesizer**, not Comparison
+- [ ] Synthesizer fetches documentation from **all** mentioned repos
+- [ ] Response includes a **Parts Extracted** table citing source repos
+- [ ] Response includes **Compatibility Analysis** (conflicts + resolutions)
+- [ ] Response includes **Integration Architecture** (Mermaid diagram or description)
+- [ ] Response includes **Directory Structure** for the new project
+- [ ] Response includes **Implementation Guide** with actionable steps
+- [ ] All content is grounded in CodeWiki data, not generic knowledge
+- [ ] Master presents the **full** subagent response (not a brief summary)
+
+---
+
 ## Quick Reference: Routing Rules
 
 | User intent | Subagent | Key signal words |
@@ -250,6 +301,7 @@ tools:
 | Code analysis | CodeWiki Code Review | "review", "analyse", "module", "function", "code" |
 | System design | CodeWiki Architecture Explorer | "architecture", "design", "structure", "hierarchy" |
 | Multi-repo comparison | CodeWiki Comparison | "compare", "vs", "difference", "or" |
+| Multi-repo synthesis | CodeWiki Synthesizer | "combine", "merge", "build using", "take X from A and Y from B" |
 | Unindexed repo | CodeWiki Researcher | Subagent detects NOT_INDEXED and calls `codewiki_request_indexing` |
 
 ---
