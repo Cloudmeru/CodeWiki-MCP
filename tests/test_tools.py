@@ -55,7 +55,7 @@ def _list_tool_names(mcp: Any) -> set[str]:
 # fetch_wiki_page mock applied at the _helpers import location.
 _HELPERS_FETCH = "codewiki_mcp.tools._helpers.fetch_wiki_page"
 # Rate limiter must always allow in tests (unless testing rate limiting itself)
-_HELPERS_RATE_LIMIT = "codewiki_mcp.tools._helpers.check_rate_limit"
+_HELPERS_RATE_LIMIT = "codewiki_mcp.tools._helpers.wait_for_rate_limit"
 
 
 # ---------------------------------------------------------------------------
@@ -441,7 +441,7 @@ class TestRateLimitIntegration:
 
     def test_search_rate_limited(self, mocker):
         """Search tool returns RATE_LIMITED when limit exceeded."""
-        mocker.patch("codewiki_mcp.tools.search.check_rate_limit", return_value=False)
+        mocker.patch("codewiki_mcp.tools.search.wait_for_rate_limit", return_value=False)
 
         from codewiki_mcp.tools.search import register
         from mcp.server.fastmcp import FastMCP

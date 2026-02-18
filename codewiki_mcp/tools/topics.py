@@ -16,6 +16,7 @@ from .. import config
 from ..cache import get_cached_topics, set_cached_topics
 from ..parser import page_to_topic_list
 from ..types import ResponseMeta, ToolResponse, validate_topics_input
+from ..rate_limit import rate_limit_remaining
 from ._helpers import (
     build_resolution_note,
     fetch_page_or_error,
@@ -77,6 +78,7 @@ def register(mcp: FastMCP) -> None:
                 meta=ResponseMeta(
                     elapsed_ms=elapsed,
                     char_count=len(cached),
+                    calls_remaining=rate_limit_remaining(validated.repo_url),
                 ),
             ).to_text()
 
@@ -103,5 +105,6 @@ def register(mcp: FastMCP) -> None:
                 elapsed_ms=elapsed,
                 char_count=len(data),
                 truncated=truncated,
+                calls_remaining=rate_limit_remaining(validated.repo_url),
             ),
         ).to_text()

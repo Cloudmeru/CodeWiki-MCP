@@ -19,6 +19,7 @@ from ..types import (
     ToolResponse,
     validate_contents_input,
 )
+from ..rate_limit import rate_limit_remaining
 from ._helpers import (
     build_resolution_note,
     fetch_page_or_error,
@@ -154,5 +155,6 @@ def register(mcp: FastMCP) -> None:
                 elapsed_ms=int((time.monotonic() - start) * 1000),
                 char_count=len(data),
                 truncated=truncated,
+                calls_remaining=rate_limit_remaining(validated.repo_url),
             ),
         ).to_text()

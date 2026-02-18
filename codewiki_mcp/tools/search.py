@@ -17,7 +17,7 @@ from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 from .. import config
 from ..browser import _get_browser, run_in_browser_loop
 from ..cache import get_cached_search, set_cached_search
-from ..rate_limit import check_rate_limit
+from ..rate_limit import check_rate_limit, rate_limit_remaining, time_until_next_slot, wait_for_rate_limit
 from ..session_pool import (
     _get_or_create,
     _release,
@@ -523,15 +523,20 @@ def register(mcp: FastMCP) -> None:
             return validated.to_text()
 
         # --- Rate limiting ---
-        if not check_rate_limit(validated.repo_url):
+        if not wait_for_rate_limit(validated.repo_url):
+            retry_after = time_until_next_slot(validated.repo_url)
             return ToolResponse.error(
                 ErrorCode.RATE_LIMITED,
                 f"Rate limit exceeded for {validated.repo_url}. "
                 f"Max {config.RATE_LIMIT_MAX_CALLS} calls per "
                 f"{config.RATE_LIMIT_WINDOW_SECONDS}s window. "
-                "Please wait before retrying.",
+                f"Retry after {retry_after:.0f}s.",
                 repo_url=validated.repo_url,
                 query=validated.query,
+                meta=ResponseMeta(
+                    retry_after_seconds=round(retry_after, 1),
+                    calls_remaining=0,
+                ),
             ).to_text()
 
         note = build_resolution_note(original_input, validated.repo_url)
@@ -547,6 +552,7 @@ def register(mcp: FastMCP) -> None:
                 meta=ResponseMeta(
                     elapsed_ms=elapsed,
                     char_count=len(cached),
+                    calls_remaining=rate_limit_remaining(validated.repo_url),
                 ),
             ).to_text()
 
@@ -560,6 +566,7 @@ def register(mcp: FastMCP) -> None:
                 result.meta.attempt = attempt
                 result.meta.max_attempts = config.MAX_RETRIES
                 result.meta.elapsed_ms = int((time.monotonic() - start) * 1000)
+                result.meta.calls_remaining = rate_limit_remaining(validated.repo_url)
                 # Cache the successful result
                 if result.data:
                     set_cached_search(validated.repo_url, validated.query, result.data)

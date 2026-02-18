@@ -247,11 +247,16 @@ class TestFetchPageOrError:
             return_value=type("V", (), {"repo_url": "https://github.com/o/r"})(),
         )
         mocker.patch(
-            "codewiki_mcp.tools._helpers.check_rate_limit", return_value=False
+            "codewiki_mcp.tools._helpers.wait_for_rate_limit", return_value=False
+        )
+        mocker.patch(
+            "codewiki_mcp.tools._helpers.time_until_next_slot", return_value=15.0
         )
         result = fetch_page_or_error("https://github.com/o/r")
         assert isinstance(result, ToolResponse)
         assert result.code == ErrorCode.RATE_LIMITED
+        assert result.meta.retry_after_seconds == 15.0
+        assert result.meta.calls_remaining == 0
 
     def test_timeout_error(self, mocker):
         mocker.patch(
@@ -259,7 +264,7 @@ class TestFetchPageOrError:
             return_value=type("V", (), {"repo_url": "https://github.com/o/r"})(),
         )
         mocker.patch(
-            "codewiki_mcp.tools._helpers.check_rate_limit", return_value=True
+            "codewiki_mcp.tools._helpers.wait_for_rate_limit", return_value=True
         )
         mocker.patch(
             "codewiki_mcp.tools._helpers.dedup_fetch",
@@ -278,7 +283,7 @@ class TestFetchPageOrError:
             return_value=type("V", (), {"repo_url": "https://github.com/o/r"})(),
         )
         mocker.patch(
-            "codewiki_mcp.tools._helpers.check_rate_limit", return_value=True
+            "codewiki_mcp.tools._helpers.wait_for_rate_limit", return_value=True
         )
         mocker.patch(
             "codewiki_mcp.tools._helpers.dedup_fetch", return_value=page

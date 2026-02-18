@@ -13,10 +13,11 @@ from typing import TYPE_CHECKING
 from .. import config
 from ..dedup import dedup_fetch
 from ..parser import WikiPage, fetch_wiki_page
-from ..rate_limit import check_rate_limit
+from ..rate_limit import check_rate_limit, rate_limit_remaining, time_until_next_slot, wait_for_rate_limit
 from ..resolver import is_bare_keyword, resolve_keyword, resolve_keyword_interactive
 from ..types import (
     ErrorCode,
+    ResponseMeta,
     ToolResponse,
     validate_topics_input,
 )
@@ -180,14 +181,19 @@ def fetch_page_or_error(repo_url: str) -> WikiPage | ToolResponse:
     if isinstance(validated, ToolResponse):
         return validated
 
-    if not check_rate_limit(validated.repo_url):
+    if not wait_for_rate_limit(validated.repo_url):
+        retry_after = time_until_next_slot(validated.repo_url)
         return ToolResponse.error(
             ErrorCode.RATE_LIMITED,
             f"Rate limit exceeded for {validated.repo_url}. "
             f"Max {config.RATE_LIMIT_MAX_CALLS} calls per "
             f"{config.RATE_LIMIT_WINDOW_SECONDS}s window. "
-            "Please wait before retrying.",
+            f"Retry after {retry_after:.0f}s.",
             repo_url=validated.repo_url,
+            meta=ResponseMeta(
+                retry_after_seconds=round(retry_after, 1),
+                calls_remaining=0,
+            ),
         )
 
     try:

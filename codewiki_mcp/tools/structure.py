@@ -13,6 +13,7 @@ import time
 from mcp.server.fastmcp import Context, FastMCP
 
 from ..types import ResponseMeta, ToolResponse
+from ..rate_limit import rate_limit_remaining
 from ._helpers import build_resolution_note, fetch_page_or_error, pre_resolve_keyword
 
 logger = logging.getLogger("CodeWiki")
@@ -75,5 +76,6 @@ def register(mcp: FastMCP) -> None:
             meta=ResponseMeta(
                 elapsed_ms=elapsed,
                 char_count=len(data),
+                calls_remaining=rate_limit_remaining(page.url),
             ),
         ).to_text()

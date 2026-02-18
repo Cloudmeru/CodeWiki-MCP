@@ -161,6 +161,8 @@ class ResponseMeta(BaseModel):
     max_attempts: int = 1
     truncated: bool = False
     content_hash: str | None = None
+    calls_remaining: int | None = None
+    retry_after_seconds: float | None = None
 
 
 def _compute_hash(data: str) -> str:

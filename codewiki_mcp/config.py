@@ -66,6 +66,11 @@ TOPIC_CACHE_MAX_SIZE: int = _env_int("CODEWIKI_TOPIC_CACHE_MAX_SIZE", 30)
 # ---------------------------------------------------------------------------
 RATE_LIMIT_WINDOW_SECONDS: int = _env_int("CODEWIKI_RATE_LIMIT_WINDOW", 60)
 RATE_LIMIT_MAX_CALLS: int = _env_int("CODEWIKI_RATE_LIMIT_MAX_CALLS", 10)
+RATE_LIMIT_AUTO_WAIT: bool = (
+    os.environ.get("CODEWIKI_RATE_LIMIT_AUTO_WAIT", "1").strip().lower()
+    not in ("0", "false", "no")
+)
+RATE_LIMIT_MAX_WAIT_SECONDS: int = _env_int("CODEWIKI_RATE_LIMIT_MAX_WAIT", 30)
 
 # ---------------------------------------------------------------------------
 # Playwright chat timing

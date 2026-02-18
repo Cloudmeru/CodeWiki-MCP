@@ -4,8 +4,9 @@ Prevents runaway agent loops from hammering CodeWiki with the same
 request hundreds of times.  Each repo URL gets its own counter that
 tracks calls within a configurable window (default: 10 calls / 60 s).
 
-When the limit is exceeded the tool returns a clear error response
-so the agent knows to stop retrying.
+When the limit is exceeded the tool can either auto-wait for the next
+available slot (up to ``RATE_LIMIT_MAX_WAIT_SECONDS``) or return a
+clear ``RATE_LIMITED`` error so the agent knows to stop retrying.
 
 Thread-safe: uses a ``threading.Lock`` to guard the counter state.
 """
@@ -56,6 +57,68 @@ def check_rate_limit(key: str) -> bool:
 
         timestamps.append(now)
         return True
+
+
+def time_until_next_slot(key: str) -> float:
+    """Return seconds until the next rate-limit slot opens for *key*.
+
+    Returns 0.0 if a slot is already available.
+    """
+    now = time.monotonic()
+    window = config.RATE_LIMIT_WINDOW_SECONDS
+    max_calls = config.RATE_LIMIT_MAX_CALLS
+
+    with _lock:
+        timestamps = _windows.get(key, [])
+        cutoff = now - window
+        active = sorted(t for t in timestamps if t > cutoff)
+
+        if len(active) < max_calls:
+            return 0.0
+
+        # Oldest active timestamp — when it expires, a slot opens
+        oldest = active[0]
+        wait = (oldest + window) - now
+        return max(0.0, wait)
+
+
+def wait_for_rate_limit(key: str) -> bool:
+    """Wait until a rate-limit slot opens, then record the call.
+
+    If ``RATE_LIMIT_AUTO_WAIT`` is disabled or the wait would exceed
+    ``RATE_LIMIT_MAX_WAIT_SECONDS``, returns ``False`` immediately
+    (caller should return a RATE_LIMITED error).
+
+    Returns ``True`` if the call is now allowed (may have waited).
+    """
+    if not config.RATE_LIMIT_AUTO_WAIT:
+        return check_rate_limit(key)
+
+    # Fast path: slot available right now
+    if check_rate_limit(key):
+        return True
+
+    wait = time_until_next_slot(key)
+    max_wait = config.RATE_LIMIT_MAX_WAIT_SECONDS
+
+    if wait <= 0:
+        # Shouldn't happen, but re-check
+        return check_rate_limit(key)
+
+    if wait > max_wait:
+        logger.warning(
+            "Rate limit wait %.1fs exceeds max %ds for %s — rejecting",
+            wait,
+            max_wait,
+            key,
+        )
+        return False
+
+    logger.info(
+        "Rate limited for %s — auto-waiting %.1fs for next slot", key, wait
+    )
+    time.sleep(wait + 0.05)  # small buffer to ensure the slot is open
+    return check_rate_limit(key)
 
 
 def rate_limit_remaining(key: str) -> int:
